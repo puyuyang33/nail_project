@@ -1,0 +1,243 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #191713;
+  --paper: #f6f1e8;
+  --paper-deep: #e9e0d3;
+  --porcelain: #fffdf8;
+  --wine: #6b1834;
+  --wine-bright: #9c234e;
+  --acid: #d9f26a;
+  --silver: #c7c7c2;
+  --line: rgba(25, 23, 19, 0.18);
+  --shadow: 0 24px 70px rgba(53, 36, 28, 0.12);
+  --radius: 1.25rem;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-porcelain: var(--porcelain);
+  --color-wine: var(--wine);
+  --color-wine-bright: var(--wine-bright);
+  --color-acid: var(--acid);
+  --color-silver: var(--silver);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(
+      circle at 7% 0%,
+      rgba(156, 35, 78, 0.08),
+      transparent 26rem
+    ),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), "Trebuchet MS", sans-serif;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  content: "";
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--wine);
+  color: white;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--wine-bright);
+  outline-offset: 3px;
+}
+
+.display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+.container-shell {
+  width: min(100% - 2rem, 90rem);
+  margin-inline: auto;
+}
+
+.eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.button-primary,
+.button-secondary,
+.button-ghost {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border: 1px solid var(--ink);
+  padding: 0.8rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.button-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button-primary:hover {
+  transform: translateY(-2px);
+  background: var(--wine);
+  box-shadow: 0 10px 30px rgba(107, 24, 52, 0.2);
+}
+
+.button-secondary {
+  background: transparent;
+  color: var(--ink);
+}
+
+.button-secondary:hover {
+  background: var(--acid);
+}
+
+.button-ghost {
+  min-height: auto;
+  border-color: transparent;
+  padding-inline: 0;
+}
+
+.button-ghost:hover {
+  color: var(--wine);
+}
+
+.field {
+  width: 100%;
+  min-height: 3.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: rgba(255, 253, 248, 0.7);
+  padding: 0.8rem 0.95rem;
+  color: var(--ink);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.field:focus {
+  border-color: var(--wine);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(156, 35, 78, 0.12);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rule {
+  border-color: var(--line);
+}
+
+.editorial-grid {
+  background-image:
+    linear-gradient(to right, rgba(25, 23, 19, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(25, 23, 19, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.reveal {
+  animation: reveal 700ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.reveal-delay-1 {
+  animation-delay: 100ms;
+}
+
+.reveal-delay-2 {
+  animation-delay: 200ms;
+}
+
+.reveal-delay-3 {
+  animation-delay: 300ms;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .container-shell {
+    width: min(100% - 4rem, 90rem);
+  }
+}

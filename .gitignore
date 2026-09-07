@@ -1,0 +1,56 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Tests and coverage
+/coverage
+/playwright-report/
+/blob-report/
+/test-results/
+
+# Next.js
+/.next/
+/out/
+
+# Build output and caches
+/build
+/.turbo/
+/.cache/
+*.tsbuildinfo
+*.eslintcache
+
+# Local databases and uploads
+/prisma/*.db
+/prisma/*.db-journal
+/uploads/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# Vercel
+/.vercel/
+next-env.d.ts
