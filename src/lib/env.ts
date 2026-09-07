@@ -1,0 +1,58 @@
+import "server-only";
+import { z } from "zod";
+
+const optionalUrl = z.string().url().optional().or(z.literal(""));
+
+const schema = z.object({
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
+  VERCEL_ENV: z.enum(["development", "preview", "production"]).optional(),
+  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+  DATABASE_URL: optionalUrl,
+  DIRECT_URL: optionalUrl,
+  AUTH_SECRET: z.string().min(32).optional(),
+  STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
+  CLOUDINARY_API_KEY: z.string().min(1).optional(),
+  CLOUDINARY_API_SECRET: z.string().min(1).optional(),
+  RESEND_API_KEY: z.string().startsWith("re_").optional(),
+  EMAIL_FROM: z.string().min(3).optional(),
+  UPSTASH_REDIS_REST_URL: optionalUrl,
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+  CRON_SECRET: z.string().min(32).optional(),
+  BUSINESS_TIMEZONE: z.string().default("America/Chicago"),
+  STORE_CURRENCY: z.string().length(3).default("USD"),
+  APPOINTMENT_DEPOSITS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+});
+
+const parsed = schema.safeParse(process.env);
+
+if (!parsed.success) {
+  throw new Error(
+    `Invalid environment configuration: ${parsed.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ")}`,
+  );
+}
+
+export const env = parsed.data;
+
+export const serviceReadiness = {
+  database: Boolean(env.DATABASE_URL),
+  auth: Boolean(env.AUTH_SECRET && env.DATABASE_URL),
+  stripe: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET),
+  cloudinary: Boolean(
+    env.CLOUDINARY_CLOUD_NAME &&
+    env.CLOUDINARY_API_KEY &&
+    env.CLOUDINARY_API_SECRET,
+  ),
+  email: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM),
+  distributedRateLimit: Boolean(
+    env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN,
+  ),
+} as const;
