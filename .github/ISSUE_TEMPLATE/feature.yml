@@ -1,0 +1,80 @@
+name: Feature request
+description: Propose a reusable improvement to the storefront or operations
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the customer or operator problem first. Requests should preserve guest commerce/booking, localization, accessibility, and template reusability.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who is affected, and what cannot they accomplish today?
+      placeholder: As a customer or operator, I need...
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe observable behavior rather than an implementation.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Storefront
+        - Localization
+        - Commerce
+        - Appointments
+        - Customer account
+        - Admin
+        - Integrations
+        - Database
+        - Developer experience
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Optional implementation ideas, workflows, or examples
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: checkboxes
+    id: impacts
+    attributes:
+      label: Expected impact
+      options:
+        - label: English copy or behavior
+        - label: Simplified Chinese copy or behavior
+        - label: Accessibility or keyboard interaction
+        - label: Database schema or migration
+        - label: Authentication, authorization, privacy, or abuse prevention
+        - label: Payments, inventory, or appointment availability
+        - label: New environment variable or external service
+        - label: Documentation or template customization
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues for a similar request.
+          required: true
+        - label: This proposal is reusable beyond one store's private workflow.
+          required: true
