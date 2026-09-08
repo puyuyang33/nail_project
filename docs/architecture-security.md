@@ -18,6 +18,7 @@ Public browser
   └── Auth.js endpoints
          │
          ├── PostgreSQL through Prisma 7 / @prisma/adapter-pg
+         ├── optional MongoDB document content and operational events
          ├── Stripe API and signed webhook callbacks
          ├── Cloudinary signed or server-validated uploads
          ├── Resend email API
@@ -29,15 +30,16 @@ Vercel Cron
 
 ### Application layers
 
-| Layer              | Location                                    | Responsibility                                                                 |
-| ------------------ | ------------------------------------------- | ------------------------------------------------------------------------------ |
-| Routes and layouts | `src/app`                                   | Rendering, metadata, route handlers, and server actions                        |
-| Interactive UI     | `src/components`                            | Forms, cart state, image manager, and reusable storefront controls             |
-| Domain functions   | `src/features`                              | Pricing, appointment calculations, and request schemas                         |
-| Service adapters   | `src/lib`                                   | Prisma, Auth.js helpers, Stripe, email, tokens, normalization, and rate limits |
-| Runtime defaults   | `src/config/store.ts`                       | Brand, locale, currency, booking, shipping, and feature defaults               |
-| Localized content  | `messages/*.json`, `src/data/content.ts`    | Interface strings and editorial content                                        |
-| Persistence        | `prisma/schema.prisma`, `prisma/migrations` | Relational model and database-enforced invariants                              |
+| Layer              | Location                                                   | Responsibility                                                                 |
+| ------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Routes and layouts | `src/app`                                                  | Rendering, metadata, route handlers, and server actions                        |
+| Interactive UI     | `src/components`                                           | Forms, cart state, image manager, and reusable storefront controls             |
+| Domain functions   | `src/features`                                             | Pricing, appointment calculations, and request schemas                         |
+| Service adapters   | `src/lib`                                                  | Prisma, Auth.js helpers, Stripe, email, tokens, normalization, and rate limits |
+| Runtime defaults   | `src/config/store.ts`                                      | Brand, locale, currency, booking, shipping, and feature defaults               |
+| Localized content  | `messages/*.json`, `src/data/content.ts`                   | Interface strings and editorial content                                        |
+| Persistence        | `prisma/schema.prisma`, `prisma/migrations`                | Relational model and database-enforced invariants                              |
+| Document storage   | `src/lib/document-store`, `src/data/content-repository.ts` | Optional versioned content and TTL events                                      |
 
 When `DATABASE_URL` is absent, catalog readers use the in-repository demo catalog
 and the availability endpoint returns demonstration slots. Mutations requiring
@@ -122,6 +124,15 @@ available” response rather than leaking other appointment details.
 `src/config/store.ts` is currently the runtime source for most storefront settings;
 seeded `StoreSetting` records provide persistence and an administration surface.
 Keep both aligned until runtime settings are loaded from the database.
+
+### Optional document storage
+
+MongoDB stores versioned nested content documents and short-lived operational
+documents only. PostgreSQL remains authoritative for identity, catalog relations,
+inventory, carts, orders, payments, discounts, and scheduling. With MongoDB disabled,
+public information pages use `src/data/content.ts`. With it enabled, only valid
+published documents override that fallback. See
+[Optional MongoDB document storage](nosql-storage.md).
 
 ## Trust boundaries and controls
 

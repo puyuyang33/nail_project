@@ -2,8 +2,10 @@ import { AppointmentStatus, OrderStatus, ReviewStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { formatInTimeZone } from "date-fns-tz";
 import type { Locale } from "@/i18n/routing";
+import { Link } from "@/i18n/navigation";
 import { requireAdmin } from "@/lib/authorization";
 import { requireDatabase } from "@/lib/db";
+import { contentPages } from "@/data/content";
 import {
   updateAppointmentStatus,
   updateOrderStatus,
@@ -372,16 +374,26 @@ async function SectionContent({
     );
   }
 
-  if (
-    section === "settings" ||
-    section === "content" ||
-    section === "banners"
-  ) {
+  if (section === "content") {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2">
+        {Object.keys(contentPages).map((key) => (
+          <Link
+            href={`/admin/content/${key}`}
+            key={key}
+            className="bg-porcelain hover:bg-acid border border-black/15 p-5 transition-colors"
+          >
+            <span className="eyebrow text-black/40">Editable document</span>
+            <strong className="display mt-3 block text-3xl">{key}</strong>
+          </Link>
+        ))}
+      </div>
+    );
+  }
+
+  if (section === "settings" || section === "banners") {
     const settings = await database.storeSetting.findMany({
-      where:
-        section === "settings"
-          ? undefined
-          : { category: section === "content" ? "content" : "promotion" },
+      where: section === "settings" ? undefined : { category: "promotion" },
       orderBy: [{ category: "asc" }, { key: "asc" }],
     });
     return (

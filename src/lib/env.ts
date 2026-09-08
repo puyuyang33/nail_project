@@ -3,32 +3,57 @@ import { z } from "zod";
 
 const optionalUrl = z.string().url().optional().or(z.literal(""));
 
-const schema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-  VERCEL_ENV: z.enum(["development", "preview", "production"]).optional(),
-  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
-  DATABASE_URL: optionalUrl,
-  DIRECT_URL: optionalUrl,
-  AUTH_SECRET: z.string().min(32).optional(),
-  STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
-  CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
-  CLOUDINARY_API_KEY: z.string().min(1).optional(),
-  CLOUDINARY_API_SECRET: z.string().min(1).optional(),
-  RESEND_API_KEY: z.string().startsWith("re_").optional(),
-  EMAIL_FROM: z.string().min(3).optional(),
-  UPSTASH_REDIS_REST_URL: optionalUrl,
-  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
-  CRON_SECRET: z.string().min(32).optional(),
-  BUSINESS_TIMEZONE: z.string().default("America/Chicago"),
-  STORE_CURRENCY: z.string().length(3).default("USD"),
-  APPOINTMENT_DEPOSITS_ENABLED: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
-});
+const schema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    VERCEL_ENV: z.enum(["development", "preview", "production"]).optional(),
+    NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+    DATABASE_URL: optionalUrl,
+    DIRECT_URL: optionalUrl,
+    AUTH_SECRET: z.string().min(32).optional(),
+    STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
+    CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
+    CLOUDINARY_API_KEY: z.string().min(1).optional(),
+    CLOUDINARY_API_SECRET: z.string().min(1).optional(),
+    RESEND_API_KEY: z.string().startsWith("re_").optional(),
+    EMAIL_FROM: z.string().min(3).optional(),
+    UPSTASH_REDIS_REST_URL: optionalUrl,
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+    CRON_SECRET: z.string().min(32).optional(),
+    BUSINESS_TIMEZONE: z.string().default("America/Chicago"),
+    STORE_CURRENCY: z.string().length(3).default("USD"),
+    APPOINTMENT_DEPOSITS_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    NOSQL_PROVIDER: z.enum(["disabled", "mongodb"]).default("disabled"),
+    MONGODB_URI: z
+      .string()
+      .regex(/^mongodb(\+srv)?:\/\//)
+      .optional(),
+    MONGODB_DATABASE: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{1,64}$/)
+      .default("lunaria"),
+    NOSQL_EVENT_RETENTION_DAYS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(3650)
+      .default(90),
+  })
+  .superRefine((value, context) => {
+    if (value.NOSQL_PROVIDER === "mongodb" && !value.MONGODB_URI) {
+      context.addIssue({
+        code: "custom",
+        path: ["MONGODB_URI"],
+        message: "MONGODB_URI is required when NOSQL_PROVIDER=mongodb",
+      });
+    }
+  });
 
 const parsed = schema.safeParse(process.env);
 
@@ -55,4 +80,5 @@ export const serviceReadiness = {
   distributedRateLimit: Boolean(
     env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN,
   ),
+  documentStore: env.NOSQL_PROVIDER === "mongodb" && Boolean(env.MONGODB_URI),
 } as const;

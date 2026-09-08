@@ -28,6 +28,7 @@ Browser
   ├─ localized App Router pages and React components
   └─ route handlers / server actions (Zod validation + authorization)
        ├─ Prisma 7 + @prisma/adapter-pg ── PostgreSQL
+       ├─ MongoDB Atlas (optional) ── flexible content documents
        ├─ Auth.js ── credentials/JWT sessions
        ├─ Stripe ── hosted checkout + signed webhooks
        ├─ Cloudinary ── signed direct image uploads
@@ -40,6 +41,10 @@ catalog, operational records, translations, and seeded `StoreSetting` values. Wh
 `DATABASE_URL` is absent, read-only catalog and availability screens use
 `src/data/demo.ts`; checkout, accounts, persistence, and booking still require a
 database.
+
+MongoDB is optional and disabled by default. When enabled, published page documents
+override the checked-in editorial content without moving transactional records out
+of PostgreSQL. See [Optional MongoDB document storage](docs/nosql-storage.md).
 
 See [Architecture and security](docs/architecture-security.md) for trust boundaries,
 data flows, and database details.
@@ -139,6 +144,10 @@ preview, and production environments.
 | `BUSINESS_TIMEZONE`                                                  | No                               | IANA timezone; defaults to `America/Chicago`                                          |
 | `STORE_CURRENCY`                                                     | No                               | Validated currency value; keep aligned with `storeConfig.currency`                    |
 | `APPOINTMENT_DEPOSITS_ENABLED`                                       | No                               | Enables Stripe-backed appointment deposits; defaults to `false`                       |
+| `NOSQL_PROVIDER`                                                     | No                               | `disabled` (default) or `mongodb`                                                     |
+| `MONGODB_URI`                                                        | MongoDB mode                     | Server-only Atlas/compatible driver URI                                               |
+| `MONGODB_DATABASE`                                                   | No                               | Document database name; defaults to `lunaria`                                         |
+| `NOSQL_EVENT_RETENTION_DAYS`                                         | No                               | TTL for operational documents; defaults to 90 days                                    |
 | `SEED_ADMIN_EMAIL` / `ADMIN_EMAIL`                                   | Seed                             | Initial administrator email                                                           |
 | `SEED_ADMIN_PASSWORD` / `ADMIN_PASSWORD`                             | Seed                             | Initial administrator password; never logged or committed                             |
 | `SEED_ADMIN_NAME` / `ADMIN_NAME`                                     | No                               | Initial administrator display name                                                    |
@@ -248,6 +257,7 @@ status updates are implemented mutations.
 | `/api/store-state`                                     | `GET`, `PUT`     | Persistent guest/account cart and wishlist                    |
 | `/api/admin/cloudinary/signature`                      | `POST`, `DELETE` | Authorized signed upload/deletion                             |
 | `/api/admin/cloudinary/upload`                         | `POST`           | MIME- and size-validated image upload                         |
+| `/api/admin/content/[...key]`                          | `GET`, `PUT`     | Versioned MongoDB content documents                           |
 | `/api/cron/appointment-reminders`                      | `GET`            | Secret-authenticated reminder batch                           |
 | `/api/health`                                          | `GET`            | Service configuration readiness                               |
 | `/sitemap.xml`, `/robots.txt`, `/manifest.webmanifest` | `GET`            | SEO/PWA metadata                                              |
@@ -299,6 +309,20 @@ Verify a Resend sending domain and set `EMAIL_FROM`. Without email configuration
 password recovery is unavailable and transactional sends report as undelivered.
 Configure Upstash REST credentials in production. Production startup fails closed
 without them; only local development uses the in-memory fallback.
+
+### Optional MongoDB Atlas
+
+MongoDB is intentionally not required for commerce or booking. Leave
+`NOSQL_PROVIDER=disabled` until a cluster exists. For a low-cost start, create an
+Atlas M0 free shared cluster, set the MongoDB variables, and run:
+
+```bash
+npm run nosql:setup
+```
+
+This validates the connection and creates unique, lookup, and TTL indexes. Review
+free-tier limits and the full [hybrid storage guide](docs/nosql-storage.md) before
+using it for production content.
 
 ## Appointment configuration
 

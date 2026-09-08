@@ -15,6 +15,9 @@ supports it:
 4. **Cloudinary** — signed image-upload account and restricted upload policy.
 5. **Resend** — API key and verified sending domain.
 6. **Upstash Redis** — REST-enabled database for distributed rate limiting.
+7. **MongoDB Atlas (optional)** — document storage for editable nested content and
+   TTL operational events. An M0 cluster can be used while the workload fits its
+   free-tier limits.
 
 Require MFA for provider dashboards and use least-privilege team roles. Never reuse
 production credentials in preview deployments.
@@ -34,6 +37,10 @@ are names or examples, not deployable credentials.
 | `BUSINESS_TIMEZONE`            | Valid IANA name, for example `America/Chicago`; never use an abbreviation such as `CST`.                                                            |
 | `STORE_CURRENCY`               | Validated three-letter ISO currency value. Runtime pricing currently reads `src/config/store.ts`; keep them aligned.                                |
 | `APPOINTMENT_DEPOSITS_ENABLED` | Enables Stripe-backed appointment deposits at runtime; defaults to `false`.                                                                         |
+| `NOSQL_PROVIDER`               | `disabled` by default; set to `mongodb` only after the document cluster exists.                                                                     |
+| `MONGODB_URI`                  | Server-only Atlas/compatible driver URI; required in MongoDB mode.                                                                                  |
+| `MONGODB_DATABASE`             | Document database name; defaults to `lunaria`.                                                                                                      |
+| `NOSQL_EVENT_RETENTION_DAYS`   | TTL for operational documents; defaults to 90 days.                                                                                                 |
 
 `DIRECT_URL` is accepted by environment validation but is not consumed by the current
 `prisma.config.ts`. For a provider that supplies pooled and direct URLs, inject the
@@ -365,6 +372,8 @@ secret in history. Never place the secret in the URL.
    provider allowlists to the canonical HTTPS domain.
 7. Configure the reminder cron.
 8. Turn on deployment protection for previews containing private test data.
+9. If MongoDB is enabled, run `npm run nosql:setup` once per environment and verify
+   the content and TTL indexes in Atlas.
 
 Docker is local-development infrastructure only and is not used by Vercel.
 
@@ -397,6 +406,7 @@ Monitor:
 - Resend bounces/complaints;
 - Cloudinary usage;
 - Upstash errors/limit volume;
+- MongoDB connections, storage, TTL index health, and document-store errors when enabled;
 - PostgreSQL connections, storage, locks, slow queries, and backup success.
 
 Run regularly:
@@ -460,3 +470,4 @@ already understood and reconciled; it does not execute or undo SQL.
 | No reminder email                                   | Check `nextReminderAt`, status, attempts, token expiry, cron authorization, and Resend                                                                            |
 | Image deletion is rejected                          | Ensure the public ID begins with the allowed folder prefix                                                                                                        |
 | Rate limits differ between requests                 | Configure Upstash; the local fallback is instance-local                                                                                                           |
+| Static content never changes after an admin edit    | Set `NOSQL_PROVIDER=mongodb`, verify `MONGODB_URI`, run `npm run nosql:setup`, and publish the document                                                           |

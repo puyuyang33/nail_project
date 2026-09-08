@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import type { Locale } from "@/i18n/routing";
 import { contentPages } from "@/data/content";
+import { getPublishedContentPage } from "@/data/content-repository";
 import { localize } from "@/lib/utils";
 import { InquiryForm } from "@/components/forms/inquiry-form";
 import { storeConfig } from "@/config/store";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -13,8 +16,9 @@ export async function generateMetadata({
   const { locale, content } = await params;
   const safeLocale = locale as Locale;
   const key = content.join("/");
-  const page = contentPages[key];
-  if (!page) return {};
+  const resolved = await getPublishedContentPage(key);
+  if (!resolved) return {};
+  const { page } = resolved;
   const path = `/${key}`;
   return {
     title: localize(page.title, safeLocale),
@@ -42,8 +46,9 @@ export default async function ContentPage({
   const safeLocale = locale as Locale;
   setRequestLocale(safeLocale);
   const key = content.join("/");
-  const page = contentPages[key];
-  if (!page) notFound();
+  const resolved = await getPublishedContentPage(key);
+  if (!resolved) notFound();
+  const { page } = resolved;
 
   return (
     <div>

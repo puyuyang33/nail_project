@@ -61,6 +61,16 @@ test("shows guest booking fields and only selectable availability", async ({
   ).toBeVisible();
 });
 
+test("serves version-controlled content while MongoDB is disabled", async ({
+  page,
+}) => {
+  await page.goto("/en/about");
+  await expect(
+    page.getByRole("heading", { name: "Hands tell stories." }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The atelier" })).toBeVisible();
+});
+
 test("search and product details remain keyboard reachable", async ({
   page,
 }) => {

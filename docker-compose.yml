@@ -18,5 +18,29 @@ services:
       start_period: 10s
     stop_grace_period: 30s
 
+  mongodb:
+    image: mongo:8.0
+    profiles: ["nosql"]
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-lunaria}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-local_development_only}
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - nail-mongodb-data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'mongosh --quiet --eval ''db.adminCommand("ping").ok'' --username "$${MONGO_INITDB_ROOT_USERNAME}" --password "$${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    stop_grace_period: 30s
+
 volumes:
   nail-postgres-data:
+  nail-mongodb-data:
