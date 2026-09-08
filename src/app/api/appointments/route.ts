@@ -3,8 +3,6 @@ import {
   AppointmentTokenPurpose,
   ContactMethod,
   DayOfWeek,
-  PaymentProvider,
-  PaymentStatus,
   Prisma,
 } from "@prisma/client";
 import { addDays, addMinutes } from "date-fns";
@@ -13,24 +11,22 @@ import { randomBytes } from "node:crypto";
 import { appointmentSchema } from "@/features/validation/schemas";
 import { requireDatabase } from "@/lib/db";
 import { env } from "@/lib/env";
-import { appointmentConfirmationEmail, sendEmail } from "@/lib/email";
+import {
+  adminAppointmentRequestEmail,
+  appointmentNotificationRecipients,
+  appointmentRequestEmail,
+  sendEmail,
+} from "@/lib/email";
 import { normalizeEmail, normalizePhone } from "@/lib/normalize";
 import { enforceRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { createSecureToken } from "@/lib/tokens";
 import { storeConfig } from "@/config/store";
-import { requireStripe } from "@/lib/stripe";
 import { rejectUntrustedOrigin } from "@/lib/request-security";
 import {
   isAppointmentOverlapError,
   withTransactionRetry,
 } from "@/lib/transactions";
-
-const activeStatuses: AppointmentStatus[] = [
-  AppointmentStatus.PENDING,
-  AppointmentStatus.PENDING_PAYMENT,
-  AppointmentStatus.CONFIRMED,
-  AppointmentStatus.IN_PROGRESS,
-];
+import { availabilityBlockingStatuses } from "@/features/appointments/status";
 
 class BookingError extends Error {
   constructor(
@@ -135,8 +131,7 @@ export async function POST(request: Request) {
       .filter(
         (staff) =>
           staff.isActive &&
-          (parsed.data.artist === "any" ||
-            slugify(staff.displayName) === parsed.data.artist) &&
+          (parsed.data.artist === "any" || staff.id === parsed.data.artist) &&
           staff.availability.some(
             (rule) =>
               rule.dayOfWeek ===
@@ -173,12 +168,15 @@ export async function POST(request: Request) {
     const management = createSecureToken();
     const depositsEnabled =
       env.APPOINTMENT_DEPOSITS_ENABLED || storeConfig.booking.depositEnabled;
+    if (depositsEnabled && !parsed.data.email) {
+      throw new BookingError(
+        "An email address is required when appointment deposits are enabled.",
+      );
+    }
     const depositAmount = service.depositAmount
       ? Number(service.depositAmount)
       : storeConfig.booking.depositAmount;
-    const status = depositsEnabled
-      ? AppointmentStatus.PENDING_PAYMENT
-      : AppointmentStatus.CONFIRMED;
+    const status = AppointmentStatus.PENDING;
 
     const appointment = await withTransactionRetry(() =>
       database.$transaction(
@@ -186,7 +184,7 @@ export async function POST(request: Request) {
           const conflict = await tx.appointment.findFirst({
             where: {
               staffId: staff.id,
-              status: { in: activeStatuses },
+              status: { in: availabilityBlockingStatuses },
               reservedStartAt: { lt: reservedEndAt },
               reservedEndAt: { gt: reservedStartAt },
             },
@@ -236,38 +234,22 @@ export async function POST(request: Request) {
                 address: storeConfig.contact.address,
               },
               customerNotes: parsed.data.notes || null,
-              holdExpiresAt: depositsEnabled
-                ? addMinutes(new Date(), 60)
-                : null,
-              nextReminderAt: addMinutes(startsAt, -24 * 60),
+              holdExpiresAt: null,
+              nextReminderAt: null,
               statusHistory: {
                 create: {
                   sequence: 1,
                   toStatus: status,
-                  note: "Created through guest booking",
+                  note: "Customer appointment request created",
                 },
               },
-              ...(depositsEnabled
-                ? {
-                    payments: {
-                      create: {
-                        provider: PaymentProvider.STRIPE,
-                        status: PaymentStatus.PENDING,
-                        amount: depositAmount,
-                        currency: service.currency,
-                        idempotencyKey: `appointment:${confirmationNumber}`,
-                      },
-                    },
-                  }
-                : {
-                    managementTokens: {
-                      create: {
-                        tokenHash: management.hash,
-                        purpose: AppointmentTokenPurpose.MANAGE,
-                        expiresAt: addDays(endAt, 7),
-                      },
-                    },
-                  }),
+              managementTokens: {
+                create: {
+                  tokenHash: management.hash,
+                  purpose: AppointmentTokenPurpose.MANAGE,
+                  expiresAt: addDays(endAt, 7),
+                },
+              },
             },
           });
         },
@@ -275,89 +257,24 @@ export async function POST(request: Request) {
       ),
     );
 
-    if (depositsEnabled) {
-      const stripe = requireStripe();
-      try {
-        const session = await stripe.checkout.sessions.create(
-          {
-            mode: "payment",
-            payment_method_types: ["card"],
-            customer_email: parsed.data.email || undefined,
-            metadata: {
-              kind: "appointment",
-              appointmentId: appointment.id,
-              confirmationNumber,
-            },
-            payment_intent_data: {
-              metadata: {
-                kind: "appointment",
-                appointmentId: appointment.id,
-                confirmationNumber,
-              },
-            },
-            line_items: [
-              {
-                quantity: 1,
-                price_data: {
-                  currency: service.currency.toLowerCase(),
-                  unit_amount: Math.round(depositAmount * 100),
-                  product_data: {
-                    name: `${serviceName} appointment deposit`,
-                  },
-                },
-              },
-            ],
-            success_url: `${env.NEXT_PUBLIC_APP_URL}/${parsed.data.locale}/book/confirmation?reference=${confirmationNumber}`,
-            cancel_url: `${env.NEXT_PUBLIC_APP_URL}/${parsed.data.locale}/book?service=${service.slug}`,
-            expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-          },
-          { idempotencyKey: `appointment:${confirmationNumber}` },
-        );
-        await database.payment.updateMany({
-          where: { appointmentId: appointment.id },
-          data: {
-            providerPaymentId: session.id,
-            providerMetadata: { checkoutSessionId: session.id },
-          },
-        });
-        if (!session.url) {
-          throw new BookingError("Stripe did not return a checkout URL.", 502);
-        }
-        return Response.json(
-          { reference: confirmationNumber, status, checkoutUrl: session.url },
-          { status: 201 },
-        );
-      } catch (error) {
-        await database.$transaction([
-          database.appointment.update({
-            where: { id: appointment.id },
-            data: {
-              status: AppointmentStatus.EXPIRED,
-              holdExpiresAt: new Date(),
-            },
-          }),
-          database.payment.updateMany({
-            where: { appointmentId: appointment.id },
-            data: { status: PaymentStatus.FAILED },
-          }),
-        ]);
-        throw error;
-      }
-    }
-
     let emailDelivered = false;
-    let emailWarning: string | undefined;
+    const warnings: string[] = [];
+    const staffMember = candidates.find(
+      (candidate) => candidate.id === staff.id,
+    );
+    const formattedDate = formatInTimeZone(
+      startsAt,
+      env.BUSINESS_TIMEZONE,
+      "PPP 'at' p zzz",
+    );
+    const manageUrl = `${env.NEXT_PUBLIC_APP_URL}/${parsed.data.locale}/appointments/manage/${management.token}`;
     if (parsed.data.email) {
-      const manageUrl = `${env.NEXT_PUBLIC_APP_URL}/${parsed.data.locale}/appointments/manage/${management.token}`;
-      const content = appointmentConfirmationEmail({
+      const content = appointmentRequestEmail({
         name: parsed.data.name,
         reference: confirmationNumber,
         service: serviceName,
-        date: formatInTimeZone(
-          startsAt,
-          env.BUSINESS_TIMEZONE,
-          "PPP 'at' p zzz",
-        ),
+        date: formattedDate,
+        worker: staffMember?.displayName ?? "the selected artist",
         manageUrl,
       });
       try {
@@ -366,21 +283,49 @@ export async function POST(request: Request) {
           ...content,
         });
         emailDelivered = delivery.delivered;
-        emailWarning = delivery.delivered ? undefined : delivery.reason;
+        if (!delivery.delivered) warnings.push(delivery.reason);
       } catch (error) {
-        emailWarning =
+        warnings.push(
           error instanceof Error
             ? error.message.slice(0, 300)
-            : "Unknown email delivery error";
+            : "Unknown customer email delivery error",
+        );
       }
-      if (!emailDelivered) {
-        await database.appointment.update({
-          where: { id: appointment.id },
-          data: {
-            internalNotes: `Confirmation email pending: ${emailWarning}`,
-          },
+    }
+
+    const recipients = appointmentNotificationRecipients();
+    if (recipients.length) {
+      try {
+        const delivery = await sendEmail({
+          to: recipients,
+          ...adminAppointmentRequestEmail({
+            reference: confirmationNumber,
+            customer: parsed.data.name,
+            service: serviceName,
+            date: formattedDate,
+            worker: staffMember?.displayName ?? "Unassigned",
+            contact:
+              parsed.data.email || parsed.data.phone || "No contact provided",
+            adminUrl: `${env.NEXT_PUBLIC_APP_URL}/${parsed.data.locale}/admin/calendar?date=${parsed.data.date}`,
+          }),
         });
+        if (!delivery.delivered) warnings.push(delivery.reason);
+      } catch (error) {
+        warnings.push(
+          error instanceof Error
+            ? error.message.slice(0, 300)
+            : "Unknown administrator email delivery error",
+        );
       }
+    }
+
+    if (warnings.length) {
+      await database.appointment.update({
+        where: { id: appointment.id },
+        data: {
+          internalNotes: `Notification pending: ${warnings.join("; ")}`,
+        },
+      });
     }
 
     return Response.json(
@@ -388,7 +333,8 @@ export async function POST(request: Request) {
         reference: confirmationNumber,
         status,
         emailDelivered,
-        ...(emailWarning ? { warning: emailWarning } : {}),
+        awaitingApproval: true,
+        ...(warnings.length ? { warning: warnings.join("; ") } : {}),
       },
       { status: 201 },
     );
@@ -421,7 +367,7 @@ async function firstAvailableStaff(
       database.appointment.findFirst({
         where: {
           staffId: id,
-          status: { in: activeStatuses },
+          status: { in: availabilityBlockingStatuses },
           reservedStartAt: { lt: end },
           reservedEndAt: { gt: start },
         },
@@ -439,11 +385,4 @@ async function firstAvailableStaff(
     if (!appointment && !block) return { id };
   }
   return null;
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }

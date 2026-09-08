@@ -1,6 +1,7 @@
 import {
   AppointmentStatus,
   AppointmentTokenPurpose,
+  PaymentProvider,
   Prisma,
 } from "@prisma/client";
 import { differenceInHours } from "date-fns";
@@ -10,6 +11,12 @@ import { hashToken } from "@/lib/tokens";
 import { enforceRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { storeConfig } from "@/config/store";
 import { rejectUntrustedOrigin } from "@/lib/request-security";
+import { requireStripe } from "@/lib/stripe";
+import {
+  appointmentNotificationRecipients,
+  escapeHtml,
+  sendEmail,
+} from "@/lib/email";
 
 const cancellable = new Set<AppointmentStatus>([
   AppointmentStatus.PENDING,
@@ -69,8 +76,9 @@ export async function DELETE(
     );
   }
   if (
+    record.appointment.status !== AppointmentStatus.PENDING &&
     differenceInHours(record.appointment.startAt, new Date()) <
-    storeConfig.booking.cancellationHours
+      storeConfig.booking.cancellationHours
   ) {
     return Response.json(
       { error: "Online cancellation closes 24 hours before the appointment." },
@@ -111,7 +119,45 @@ export async function DELETE(
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
-  return Response.json({ status: "cancelled" });
+  const paymentSession =
+    record.appointment.payments[0]?.providerPaymentId ?? null;
+  if (paymentSession?.startsWith("cs_")) {
+    try {
+      await requireStripe().checkout.sessions.expire(paymentSession);
+    } catch {
+      await database.appointment.update({
+        where: { id: record.appointmentId },
+        data: {
+          internalNotes:
+            "Customer canceled, but the Stripe checkout session could not be expired automatically.",
+        },
+      });
+    }
+  }
+  const recipients = appointmentNotificationRecipients();
+  let adminNotified = false;
+  if (recipients.length) {
+    try {
+      const delivery = await sendEmail({
+        to: recipients,
+        subject: `Appointment ${record.appointment.confirmationNumber} canceled by customer`,
+        html: `<p>${escapeHtml(record.appointment.customerNameSnapshot)} canceled ${escapeHtml(record.appointment.serviceNameSnapshot)}.</p>`,
+      });
+      adminNotified = delivery.delivered;
+    } catch (error) {
+      await database.appointment.update({
+        where: { id: record.appointmentId },
+        data: {
+          internalNotes: `Customer canceled; admin notification failed: ${
+            error instanceof Error
+              ? error.message.slice(0, 300)
+              : "Unknown error"
+          }`,
+        },
+      });
+    }
+  }
+  return Response.json({ status: "cancelled", adminNotified });
 }
 
 async function findToken(token: string) {
@@ -123,6 +169,16 @@ async function findToken(token: string) {
       revokedAt: null,
       expiresAt: { gt: new Date() },
     },
-    include: { appointment: true },
+    include: {
+      appointment: {
+        include: {
+          payments: {
+            where: { provider: PaymentProvider.STRIPE },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+      },
+    },
   });
 }

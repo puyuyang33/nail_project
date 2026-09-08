@@ -24,6 +24,7 @@ const schema = z
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),
+    APPOINTMENT_NOTIFICATION_EMAILS: z.string().default(""),
     STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
     STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
     CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
@@ -74,6 +75,26 @@ const schema = z
         path: ["AUTH_PASSWORD_REGISTRATION_ENABLED"],
         message: "Password registration requires AUTH_CREDENTIALS_ENABLED=true",
       });
+    }
+    for (const [field, emails] of [
+      ["AUTH_GOOGLE_ADMIN_EMAILS", value.AUTH_GOOGLE_ADMIN_EMAILS],
+      [
+        "APPOINTMENT_NOTIFICATION_EMAILS",
+        value.APPOINTMENT_NOTIFICATION_EMAILS,
+      ],
+    ] as const) {
+      const invalid = emails
+        .split(",")
+        .map((email) => email.trim())
+        .filter(Boolean)
+        .find((email) => !z.email().safeParse(email).success);
+      if (invalid) {
+        context.addIssue({
+          code: "custom",
+          path: [field],
+          message: `${field} contains an invalid email address`,
+        });
+      }
     }
     if (value.NOSQL_PROVIDER === "mongodb" && !value.MONGODB_URI) {
       context.addIssue({

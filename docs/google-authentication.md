@@ -73,6 +73,10 @@ AUTH_GOOGLE_ADMIN_EMAILS=owner@example.com,manager@example.com
 An allowlisted verified Google account receives the `ADMIN` role. Existing
 `SUPER_ADMIN` users are never downgraded.
 
+The same allowlist is also the fallback recipient list for new appointment-request
+emails. Set `APPOINTMENT_NOTIFICATION_EMAILS` when front-desk notifications should go
+to a different Gmail or shared inbox.
+
 Google is configured as a trusted verified-email provider, so it may link to an
 existing seeded user with the same normalized email. Use only addresses controlled
 by the intended administrator and protect the Google accounts with MFA.

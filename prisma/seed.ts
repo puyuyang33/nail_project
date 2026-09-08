@@ -1224,12 +1224,31 @@ async function seedScheduling(
     },
   });
 
-  for (const serviceId of serviceIds.values()) {
-    await tx.staffService.upsert({
-      where: { staffId_serviceId: { staffId: staff.id, serviceId } },
-      update: {},
-      create: { staffId: staff.id, serviceId },
-    });
+  const secondStaff = await tx.staffMember.upsert({
+    where: { email: "elise.artist@example.test" },
+    update: {
+      displayName: "Elise Morgan",
+      bio: "Editorial nail artist focused on dimensional details, chrome, and expressive custom sets.",
+      isActive: true,
+      position: 20,
+    },
+    create: {
+      displayName: "Elise Morgan",
+      email: "elise.artist@example.test",
+      bio: "Editorial nail artist focused on dimensional details, chrome, and expressive custom sets.",
+      isActive: true,
+      position: 20,
+    },
+  });
+
+  for (const worker of [staff, secondStaff]) {
+    for (const serviceId of serviceIds.values()) {
+      await tx.staffService.upsert({
+        where: { staffId_serviceId: { staffId: worker.id, serviceId } },
+        update: {},
+        create: { staffId: worker.id, serviceId },
+      });
+    }
   }
 
   const openDays = [
@@ -1280,7 +1299,49 @@ async function seedScheduling(
         isAvailable: true,
       },
     });
+
+    const secondStartMinute = dayOfWeek === DayOfWeek.SATURDAY ? 600 : 660;
+    const secondEndMinute = dayOfWeek === DayOfWeek.SATURDAY ? 900 : 1020;
+    await tx.staffAvailability.upsert({
+      where: {
+        staffId_dayOfWeek_startMinute_endMinute: {
+          staffId: secondStaff.id,
+          dayOfWeek,
+          startMinute: secondStartMinute,
+          endMinute: secondEndMinute,
+        },
+      },
+      update: { isAvailable: true },
+      create: {
+        staffId: secondStaff.id,
+        dayOfWeek,
+        startMinute: secondStartMinute,
+        endMinute: secondEndMinute,
+        isAvailable: true,
+      },
+    });
   }
+
+  await tx.blockedTime.upsert({
+    where: { id: "seed-elise-time-off" },
+    update: {
+      staffId: secondStaff.id,
+      type: BlockedTimeType.PERSONAL,
+      startsAt: new Date("2030-06-14T14:00:00.000Z"),
+      endsAt: new Date("2030-06-14T22:00:00.000Z"),
+      reason: "Approved time off",
+      isAllDay: false,
+    },
+    create: {
+      id: "seed-elise-time-off",
+      staffId: secondStaff.id,
+      type: BlockedTimeType.PERSONAL,
+      startsAt: new Date("2030-06-14T14:00:00.000Z"),
+      endsAt: new Date("2030-06-14T22:00:00.000Z"),
+      reason: "Approved time off",
+      isAllDay: false,
+    },
+  });
 
   await tx.blockedTime.upsert({
     where: { id: "seed-holiday-2030-new-year" },

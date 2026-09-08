@@ -18,6 +18,7 @@ import {
   isAppointmentOverlapError,
   withTransactionRetry,
 } from "@/lib/transactions";
+import { availabilityBlockingStatuses } from "@/features/appointments/status";
 
 const imageSchema = z.object({
   url: z.url(),
@@ -244,6 +245,14 @@ export async function updateAppointmentStatus(formData: FormData) {
           where: { id: parsed.data.id },
           include: { _count: { select: { statusHistory: true } } },
         });
+        if (
+          appointment.status === AppointmentStatus.PENDING &&
+          availabilityBlockingStatuses.includes(parsed.data.status)
+        ) {
+          throw new Error(
+            "Accept pending requests from the team calendar so availability and notifications are handled.",
+          );
+        }
         await tx.appointment.update({
           where: { id: parsed.data.id, version: appointment.version },
           data: {
@@ -325,7 +334,7 @@ export async function rescheduleAppointment(formData: FormData) {
             id: { not: appointment.id },
             staffId: appointment.staffId,
             status: {
-              in: ["PENDING", "PENDING_PAYMENT", "CONFIRMED", "IN_PROGRESS"],
+              in: availabilityBlockingStatuses,
             },
             reservedStartAt: { lt: reservedEndAt },
             reservedEndAt: { gt: reservedStartAt },

@@ -30,22 +30,23 @@ are names or examples, not deployable credentials.
 
 ### Core
 
-| Variable                       | Notes                                                                                                                                               |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                 | PostgreSQL URL. The running app should use the provider's pooled URL when recommended for serverless; migration jobs need a DDL-capable connection. |
-| `NEXT_PUBLIC_APP_URL`          | Exact public origin without a trailing slash, such as `https://nails.example.com`. It is intentionally browser-visible.                             |
-| `AUTH_SECRET`                  | Random, unique, 32+ characters. Rotating it invalidates active JWT sessions.                                                                        |
-| `AUTH_GOOGLE_ID`               | Google OAuth web client ID.                                                                                                                         |
-| `AUTH_GOOGLE_SECRET`           | Google OAuth client secret; server-only.                                                                                                            |
-| `AUTH_GOOGLE_ADMIN_EMAILS`     | Comma-separated trusted administrator emails.                                                                                                       |
-| `AUTH_CREDENTIALS_ENABLED`     | Optional password fallback; defaults to `false`.                                                                                                    |
-| `BUSINESS_TIMEZONE`            | Valid IANA name, for example `America/Chicago`; never use an abbreviation such as `CST`.                                                            |
-| `STORE_CURRENCY`               | Validated three-letter ISO currency value. Runtime pricing currently reads `src/config/store.ts`; keep them aligned.                                |
-| `APPOINTMENT_DEPOSITS_ENABLED` | Enables Stripe-backed appointment deposits at runtime; defaults to `false`.                                                                         |
-| `NOSQL_PROVIDER`               | `disabled` by default; set to `mongodb` only after the document cluster exists.                                                                     |
-| `MONGODB_URI`                  | Server-only Atlas/compatible driver URI; required in MongoDB mode.                                                                                  |
-| `MONGODB_DATABASE`             | Document database name; defaults to `lunaria`.                                                                                                      |
-| `NOSQL_EVENT_RETENTION_DAYS`   | TTL for operational documents; defaults to 90 days.                                                                                                 |
+| Variable                          | Notes                                                                                                                                               |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                    | PostgreSQL URL. The running app should use the provider's pooled URL when recommended for serverless; migration jobs need a DDL-capable connection. |
+| `NEXT_PUBLIC_APP_URL`             | Exact public origin without a trailing slash, such as `https://nails.example.com`. It is intentionally browser-visible.                             |
+| `AUTH_SECRET`                     | Random, unique, 32+ characters. Rotating it invalidates active JWT sessions.                                                                        |
+| `AUTH_GOOGLE_ID`                  | Google OAuth web client ID.                                                                                                                         |
+| `AUTH_GOOGLE_SECRET`              | Google OAuth client secret; server-only.                                                                                                            |
+| `AUTH_GOOGLE_ADMIN_EMAILS`        | Comma-separated trusted administrator emails.                                                                                                       |
+| `AUTH_CREDENTIALS_ENABLED`        | Optional password fallback; defaults to `false`.                                                                                                    |
+| `BUSINESS_TIMEZONE`               | Valid IANA name, for example `America/Chicago`; never use an abbreviation such as `CST`.                                                            |
+| `STORE_CURRENCY`                  | Validated three-letter ISO currency value. Runtime pricing currently reads `src/config/store.ts`; keep them aligned.                                |
+| `APPOINTMENT_DEPOSITS_ENABLED`    | Enables Stripe-backed appointment deposits at runtime; defaults to `false`.                                                                         |
+| `APPOINTMENT_NOTIFICATION_EMAILS` | Comma-separated owner/front-desk email recipients; falls back to Google admin emails.                                                               |
+| `NOSQL_PROVIDER`                  | `disabled` by default; set to `mongodb` only after the document cluster exists.                                                                     |
+| `MONGODB_URI`                     | Server-only Atlas/compatible driver URI; required in MongoDB mode.                                                                                  |
+| `MONGODB_DATABASE`                | Document database name; defaults to `lunaria`.                                                                                                      |
+| `NOSQL_EVENT_RETENTION_DAYS`      | TTL for operational documents; defaults to 90 days.                                                                                                 |
 
 `DIRECT_URL` is accepted by environment validation but is not consumed by the current
 `prisma.config.ts`. For a provider that supplies pooled and direct URLs, inject the
@@ -159,9 +160,10 @@ Review generated SQL before committing. Never edit an already-applied migration;
 create a corrective migration. `prisma db push` is acceptable only for disposable
 prototypes because it bypasses migration history.
 
-The initial migration is followed by a hand-authored PostgreSQL integrity migration.
-It installs `btree_gist`, adds data checks, and defines the appointment exclusion
-constraint Prisma cannot express. Preserve that migration.
+The initial migration is followed by hand-authored PostgreSQL integrity migrations.
+They install `btree_gist`, add data checks, define the appointment exclusion
+constraint Prisma cannot express, and later narrow that constraint so unaccepted
+`PENDING` requests remain non-blocking. Preserve the migration sequence.
 
 Verify migration state and the exclusion constraint:
 
@@ -324,19 +326,19 @@ Use one IANA timezone throughout. If it changes, update the environment, store
 config, seed settings, public copy, and existing future schedules deliberately.
 Existing UTC appointments must not be blindly reinterpreted.
 
-The availability endpoint currently generates slots every 30 minutes and applies a
-12-hour minimum lead time. Keep those values aligned with `storeConfig.booking` when
-customizing.
+The availability endpoint currently generates slots every 30 minutes and applies the
+lead time and booking horizon from `storeConfig.booking`.
 
 ### Deposits
 
 Deposit behavior is enabled by `APPOINTMENT_DEPOSITS_ENABLED=true` or the typed
 `storeConfig.booking.depositEnabled` default. When enabled:
 
-1. a slot is held as `PENDING_PAYMENT`;
-2. Stripe Checkout collects the service or default deposit;
-3. a verified webhook confirms the appointment and creates a management token; and
-4. an expired/failed session marks the appointment expired.
+1. the customer submits a non-blocking `PENDING` request;
+2. the owner accepts it and the slot becomes a `PENDING_PAYMENT` hold;
+3. Stripe Checkout collects the service or default deposit;
+4. a verified webhook confirms the appointment and creates a management token; and
+5. an expired/failed session marks the appointment expired.
 
 Test successful, failed, abandoned, duplicate-webhook, and concurrent-booking paths
 before enabling deposits.
@@ -394,6 +396,8 @@ Docker is local-development infrastructure only and is not used by Vercel.
 - [ ] Order tracking requires matching contact information
 - [ ] Availability respects hours, blocks, staff schedules, timezone, and buffers
 - [ ] Two concurrent bookings cannot reserve the same staff/range
+- [ ] Pending requests stay publicly open until an administrator accepts one
+- [ ] Owner, customer, and worker appointment emails reach the intended inboxes
 - [ ] Guest cancellation rejects expired/invalid links and late cancellations
 - [ ] Resend emails contain correct HTTPS links
 - [ ] Cloudinary upload and deletion work only for authorized roles

@@ -15,6 +15,8 @@ order tracking, and appointment booking support guests; accounts are optional.
 - Stripe-signed, idempotent order and appointment payment webhooks
 - Timezone-aware scheduling, staff availability, blocked time, service buffers, and
   a PostgreSQL exclusion constraint preventing overlapping active appointments
+- Owner-approved appointment requests, worker/day calendar, staff lifecycle, and
+  privacy-safe public availability
 - Secure guest appointment-management links and reminder infrastructure
 - Google-based Auth.js accounts, role-gated administration, and audit records
 - Signed Cloudinary uploads with localized alternative text
@@ -154,6 +156,7 @@ preview, and production environments.
 | `BUSINESS_TIMEZONE`                                                  | No                               | IANA timezone; defaults to `America/Chicago`                                          |
 | `STORE_CURRENCY`                                                     | No                               | Validated currency value; keep aligned with `storeConfig.currency`                    |
 | `APPOINTMENT_DEPOSITS_ENABLED`                                       | No                               | Enables Stripe-backed appointment deposits; defaults to `false`                       |
+| `APPOINTMENT_NOTIFICATION_EMAILS`                                    | No                               | Comma-separated owner/front-desk notification recipients                              |
 | `NOSQL_PROVIDER`                                                     | No                               | `disabled` (default) or `mongodb`                                                     |
 | `MONGODB_URI`                                                        | MongoDB mode                     | Server-only Atlas/compatible driver URI                                               |
 | `MONGODB_DATABASE`                                                   | No                               | Document database name; defaults to `lunaria`                                         |
@@ -236,23 +239,27 @@ Every page below is prefixed with `/{locale}`, where `locale` is `en` or `zh`.
 
 ### Identity, account, and administration
 
-| Route                                 | Purpose                                                                                                                                                                                                                |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/login`                              | Google OAuth login with optional administrator password fallback                                                                                                                                                       |
-| `/register`                           | Redirects to Google login unless password registration is explicitly enabled                                                                                                                                           |
-| `/forgot-password`, `/reset-password` | Available only when password authentication is explicitly enabled                                                                                                                                                      |
-| `/account`                            | Authenticated account overview                                                                                                                                                                                         |
-| `/account/profile`                    | Contact profile                                                                                                                                                                                                        |
-| `/account/orders`                     | Linked order history                                                                                                                                                                                                   |
-| `/account/appointments`               | Linked appointment history                                                                                                                                                                                             |
-| `/account/addresses`                  | Saved addresses                                                                                                                                                                                                        |
-| `/account/wishlist`                   | Saved products                                                                                                                                                                                                         |
-| `/admin`                              | Role-gated operational dashboard                                                                                                                                                                                       |
-| `/admin/products`                     | Product list and bilingual product/image creation                                                                                                                                                                      |
-| `/admin/[section]`                    | `inventory`, `orders`, `appointments`, `services`, `customers`, `collections`, `categories`, `staff`, `schedules`, `discounts`, `reviews`, `wholesale`, `newsletter`, `content`, `banners`, `settings`, or `analytics` |
+| Route                                                        | Purpose                                                                                                                   |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `/login`                                                     | Google OAuth login with optional administrator password fallback                                                          |
+| `/register`                                                  | Redirects to Google login unless password registration is explicitly enabled                                              |
+| `/forgot-password`, `/reset-password`                        | Available only when password authentication is explicitly enabled                                                         |
+| `/account`                                                   | Authenticated account overview                                                                                            |
+| `/account/profile`                                           | Contact profile                                                                                                           |
+| `/account/orders`                                            | Linked order history                                                                                                      |
+| `/account/appointments`                                      | Linked appointment history                                                                                                |
+| `/account/addresses`                                         | Saved addresses                                                                                                           |
+| `/account/wishlist`                                          | Saved products                                                                                                            |
+| `/admin`                                                     | Role-gated operational dashboard                                                                                          |
+| `/admin/products`                                            | Product list and bilingual product/image creation                                                                         |
+| `/admin/calendar`                                            | Worker-column day calendar, approval queue, moves, time off, and owner-created bookings                                   |
+| `/admin/staff`                                               | Worker lifecycle, service assignments, and weekly availability                                                            |
+| `/admin/services`, `/admin/collections`, `/admin/categories` | Bilingual service and catalog-group management with images                                                                |
+| `/admin/[section]`                                           | Remaining inventory, orders, customers, discounts, reviews, wholesale, newsletter, content, settings, and analytics views |
 
-Some admin sections are operational read views; product creation and order/appointment
-status updates are implemented mutations.
+Catalog, collection, category, service, worker, schedule, time-off, order, and
+appointment controls are implemented mutations. Remaining analytics and subscriber
+sections are operational read views.
 
 ### API and metadata
 
@@ -350,9 +357,10 @@ buffers are included in conflict checks and the database exclusion range.
 Runtime booking lead time, cancellation notice, booking horizon, and default deposit
 live in `storeConfig.booking`; `APPOINTMENT_DEPOSITS_ENABLED` can enable deposits per
 environment. The availability API currently emits 30-minute slots. When deposits are
-enabled, Stripe confirmation changes
-`PENDING_PAYMENT` appointments to `CONFIRMED`; otherwise booking creates a secure
-management token immediately.
+enabled, owner acceptance creates a payment hold and Stripe confirmation changes
+`PENDING_PAYMENT` to `CONFIRMED`; otherwise owner acceptance confirms immediately.
+Unaccepted `PENDING` requests remain publicly open. See
+[Workforce calendar and appointment approval](docs/workforce-calendar.md).
 
 Schedule `/api/cron/appointment-reminders` at least hourly and send
 `Authorization: Bearer $CRON_SECRET`. Each invocation processes up to 50 due

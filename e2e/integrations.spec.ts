@@ -37,4 +37,10 @@ test("administrator can sign in when seeded credentials are supplied", async ({
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.goto("/en/admin");
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await page.goto("/en/admin/calendar");
+  await expect(
+    page.getByRole("heading", { name: "Day calendar" }),
+  ).toBeVisible();
+  await page.goto("/en/admin/staff");
+  await expect(page.getByRole("heading", { name: "Workers" })).toBeVisible();
 });

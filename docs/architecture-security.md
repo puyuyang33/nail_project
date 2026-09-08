@@ -102,12 +102,14 @@ reservation into a sale; failed or expired Checkout Sessions release it.
 - `AppointmentStatusHistory` provides a state audit trail.
 - `AppointmentManagementToken` stores only a SHA-256 token hash and expiry.
 
-The booking route first checks hours, staff rules, blocks, and conflicts, then repeats
-the conflict check inside a serializable transaction. The
+The booking route records a non-blocking `PENDING` request after checking current
+hours, staff rules, and blocks. Administrator acceptance repeats all checks inside a
+serializable transaction. The
 `Appointment_no_overlapping_active_staff_bookings` PostgreSQL exclusion constraint is
 the final concurrency boundary. It rejects intersecting `[reservedStartAt,
-reservedEndAt)` ranges for the same staff member while status is `PENDING`,
-`PENDING_PAYMENT`, `CONFIRMED`, or `IN_PROGRESS`. Adjacent bookings are valid.
+reservedEndAt)` ranges for the same staff member while status is `PENDING_PAYMENT`,
+`CONFIRMED`, or `IN_PROGRESS`. Pending customer requests remain open and may overlap;
+adjacent accepted bookings are valid.
 
 Any code that catches a database conflict should return a generic “slot no longer
 available” response rather than leaking other appointment details.

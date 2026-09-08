@@ -101,6 +101,8 @@ fall back to English for legal or safety copy.
 - [ ] `prisma/migrations/20260907210500_integrity_constraints/migration.sql`: keep the
       appointment exclusion constraint and ensure active statuses still match the
       application's active-status list.
+- [ ] `prisma/migrations/20260908213000_pending_approval_availability/migration.sql`:
+      preserve the rule that pending requests do not block until owner acceptance.
 - [ ] `src/app/api/checkout/route.ts`: replace the `LUN-` order-number prefix if
       branded references should change.
 - [ ] `src/app/api/appointments/route.ts`: replace the `LUN-A` appointment prefix and
@@ -137,6 +139,9 @@ before using it in production.
       stays within both business and staff hours.
 - [ ] Review `leadTimeHours`, `cancellationHours`, deposit amount, and feature flags
       in `storeConfig.booking`.
+- [ ] Configure `APPOINTMENT_NOTIFICATION_EMAILS` and worker email addresses.
+- [ ] Review the approval queue, worker-column calendar, and time-off workflow in
+      `docs/workforce-calendar.md`.
 - [ ] Review the configured lead time, booking horizon, and the availability API's
       30-minute interval.
 - [ ] Review the configured guest cancellation cutoff and policy copy.

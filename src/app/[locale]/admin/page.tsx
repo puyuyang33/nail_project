@@ -8,31 +8,40 @@ export default async function AdminDashboard({
   const { locale } = await params;
   await requireAdmin(locale as Locale);
   const database = requireDatabase();
-  const [products, orders, appointments, customers, lowStock, latestOrders] =
-    await Promise.all([
-      database.product.count({ where: { status: "ACTIVE" } }),
-      database.order.count(),
-      database.appointment.count(),
-      database.user.count({ where: { role: "CUSTOMER" } }),
-      database.inventory.count({
-        where: { quantityOnHand: { lte: 5 } },
-      }),
-      database.order.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: {
-          id: true,
-          orderNumber: true,
-          status: true,
-          grandTotal: true,
-          currency: true,
-        },
-      }),
-    ]);
+  const [
+    products,
+    orders,
+    appointments,
+    pendingRequests,
+    customers,
+    lowStock,
+    latestOrders,
+  ] = await Promise.all([
+    database.product.count({ where: { status: "ACTIVE" } }),
+    database.order.count(),
+    database.appointment.count(),
+    database.appointment.count({ where: { status: "PENDING" } }),
+    database.user.count({ where: { role: "CUSTOMER" } }),
+    database.inventory.count({
+      where: { quantityOnHand: { lte: 5 } },
+    }),
+    database.order.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        grandTotal: true,
+        currency: true,
+      },
+    }),
+  ]);
   const metrics = [
     ["Active products", products],
     ["Orders", orders],
     ["Appointments", appointments],
+    ["Requests awaiting approval", pendingRequests],
     ["Customers", customers],
     ["Low-stock variants", lowStock],
   ];

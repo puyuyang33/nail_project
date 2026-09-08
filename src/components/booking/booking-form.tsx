@@ -35,8 +35,15 @@ export function BookingForm({
   const [date, setDate] = useState(dates[0]);
   const [artist, setArtist] = useState("any");
   const [artists, setArtists] = useState([
-    { value: "maya-chen", label: "Maya Chen" },
+    { value: "demo-maya", label: "Maya Chen" },
   ]);
+  const [schedule, setSchedule] = useState<
+    Array<{
+      artistId: string;
+      label: string;
+      slots: Array<{ time: string; state: "open" | "busy" | "off" }>;
+    }>
+  >([]);
   const [timeOptions, setTimeOptions] = useState(availableTimes);
   const [selectedTime, setSelectedTime] = useState(availableTimes[0]);
   const [scheduleSource, setScheduleSource] = useState<"demo" | "live">("demo");
@@ -65,6 +72,14 @@ export function BookingForm({
           times?: string[];
           source?: "demo" | "live";
           artists?: Array<{ value: string; label: string }>;
+          schedule?: Array<{
+            artistId: string;
+            label: string;
+            slots: Array<{
+              time: string;
+              state: "open" | "busy" | "off";
+            }>;
+          }>;
         };
         const nextTimes = body.times ?? [];
         setTimeOptions(nextTimes);
@@ -73,6 +88,7 @@ export function BookingForm({
         );
         setScheduleSource(body.source ?? "live");
         if (body.artists) setArtists(body.artists);
+        if (body.schedule) setSchedule(body.schedule);
       })
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
@@ -118,7 +134,10 @@ export function BookingForm({
             name="service"
             className="field"
             value={serviceSlug}
-            onChange={(event) => setServiceSlug(event.target.value)}
+            onChange={(event) => {
+              setServiceSlug(event.target.value);
+              setArtist("any");
+            }}
           >
             {services.map((service) => (
               <option value={service.slug} key={service.slug}>
@@ -165,6 +184,22 @@ export function BookingForm({
             </select>
           </label>
         </div>
+
+        <fieldset>
+          <legend className="field-label">{t("teamAvailability")}</legend>
+          <WorkerAvailabilityGrid
+            schedule={schedule}
+            selectedArtist={artist}
+            selectedTime={selectedTime}
+            onSelect={(artistId, time) => {
+              setArtist(artistId);
+              setSelectedTime(time);
+            }}
+          />
+          <p className="mt-3 text-xs leading-5 text-black/45">
+            {t("availabilityNote")}
+          </p>
+        </fieldset>
 
         <fieldset>
           <legend className="field-label flex items-center gap-2">
@@ -281,6 +316,98 @@ export function BookingForm({
         )}
       </aside>
     </form>
+  );
+}
+
+function WorkerAvailabilityGrid({
+  schedule,
+  selectedArtist,
+  selectedTime,
+  onSelect,
+}: {
+  schedule: Array<{
+    artistId: string;
+    label: string;
+    slots: Array<{ time: string; state: "open" | "busy" | "off" }>;
+  }>;
+  selectedArtist: string;
+  selectedTime: string;
+  onSelect: (artistId: string, time: string) => void;
+}) {
+  const t = useTranslations("Booking");
+  if (!schedule.length) {
+    return (
+      <div className="border border-black/15 p-5 text-sm text-black/45">
+        {t("scheduleLoading")}
+      </div>
+    );
+  }
+  const times = schedule[0]?.slots.map((slot) => slot.time) ?? [];
+
+  return (
+    <div className="bg-porcelain overflow-x-auto border border-black/15">
+      <div
+        className="grid min-w-max"
+        style={{
+          gridTemplateColumns: `5rem repeat(${schedule.length}, minmax(8rem, 1fr))`,
+        }}
+      >
+        <div className="bg-ink text-paper sticky left-0 z-10 border-r border-b border-black/10 p-3" />
+        {schedule.map((worker) => (
+          <div
+            key={worker.artistId}
+            className="bg-ink text-paper border-r border-b border-black/10 p-3 text-center text-xs font-bold tracking-wider uppercase"
+          >
+            {worker.label}
+          </div>
+        ))}
+        {times.flatMap((time, rowIndex) => [
+          <div
+            key={`time-${time}`}
+            className="bg-paper sticky left-0 z-10 border-r border-b border-black/10 p-3 text-xs font-bold"
+          >
+            {time}
+          </div>,
+          ...schedule.map((worker) => {
+            const slot = worker.slots[rowIndex];
+            const selected =
+              worker.artistId === selectedArtist && time === selectedTime;
+            return (
+              <button
+                type="button"
+                key={`${worker.artistId}-${time}`}
+                disabled={slot?.state !== "open"}
+                onClick={() => onSelect(worker.artistId, time)}
+                aria-label={`${worker.label} ${time} ${t(
+                  slot?.state === "open"
+                    ? "slotOpen"
+                    : slot?.state === "busy"
+                      ? "slotBusy"
+                      : "slotOff",
+                )}`}
+                className={`min-h-11 border-r border-b border-black/10 px-3 py-2 text-[0.65rem] font-bold tracking-wider uppercase transition-colors ${
+                  selected
+                    ? "bg-wine text-white"
+                    : slot?.state === "open"
+                      ? "bg-acid/55 hover:bg-acid"
+                      : slot?.state === "busy"
+                        ? "bg-wine/12 text-wine"
+                        : "bg-paper-deep text-black/30"
+                }`}
+              >
+                {t(
+                  slot?.state === "open"
+                    ? "slotOpen"
+                    : slot?.state === "busy"
+                      ? "slotBusy"
+                      : "slotOff",
+                )}
+              </button>
+            );
+          }),
+        ])}
+      </div>
+    </div>
   );
 }
 

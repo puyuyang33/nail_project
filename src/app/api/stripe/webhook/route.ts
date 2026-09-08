@@ -15,12 +15,15 @@ import { requireDatabase } from "@/lib/db";
 import { env } from "@/lib/env";
 import {
   appointmentConfirmationEmail,
+  googleCalendarEventUrl,
   orderConfirmationEmail,
   sendEmail,
+  workerAppointmentEmail,
 } from "@/lib/email";
 import { requireStripe } from "@/lib/stripe";
 import { createSecureToken } from "@/lib/tokens";
 import { withTransactionRetry } from "@/lib/transactions";
+import { storeConfig } from "@/config/store";
 
 export async function POST(request: Request) {
   if (!env.STRIPE_WEBHOOK_SECRET) {
@@ -198,6 +201,7 @@ export async function POST(request: Request) {
         async (tx) => {
           const current = await tx.appointment.findUniqueOrThrow({
             where: { id: appointmentId },
+            include: { staff: true },
           });
           await tx.payment.updateMany({
             where: { appointmentId },
@@ -236,6 +240,7 @@ export async function POST(request: Request) {
                   .filter(Boolean)
                   .join("\n"),
               },
+              include: { staff: true },
             });
             return { appointment, confirmed: false };
           }
@@ -252,6 +257,7 @@ export async function POST(request: Request) {
                 },
               },
             },
+            include: { staff: true },
           });
           const sequence = await tx.appointmentStatusHistory.count({
             where: { appointmentId },
@@ -284,35 +290,62 @@ export async function POST(request: Request) {
         requiresManualRefund: true,
       };
     }
-    if (!appointment.emailSnapshot) {
-      return { handled: true, emailDelivered: false };
-    }
-    const delivery = await deliverWithoutFailingWebhook(
-      appointment.emailSnapshot,
-      appointmentConfirmationEmail({
-        name: appointment.customerNameSnapshot,
-        reference: appointment.confirmationNumber,
-        service: appointment.serviceNameSnapshot,
-        date: formatInTimeZone(
-          appointment.startAt,
-          appointment.timezone,
-          "PPP 'at' p zzz",
-        ),
-        manageUrl: `${env.NEXT_PUBLIC_APP_URL}/${appointment.locale}/appointments/manage/${management.token}`,
-      }),
+    const formattedDate = formatInTimeZone(
+      appointment.startAt,
+      appointment.timezone,
+      "PPP 'at' p zzz",
     );
-    if (!delivery.delivered) {
+    const calendarUrl = googleCalendarEventUrl({
+      title: `${appointment.serviceNameSnapshot} · ${appointment.staff?.displayName ?? "Lunaria"}`,
+      startsAt: appointment.startAt,
+      endsAt: new Date(
+        appointment.startAt.getTime() + appointment.durationMinutes * 60_000,
+      ),
+      details: `Appointment ${appointment.confirmationNumber}`,
+      location: storeConfig.contact.address,
+    });
+    const warnings: string[] = [];
+    const delivery = appointment.emailSnapshot
+      ? await deliverWithoutFailingWebhook(
+          appointment.emailSnapshot,
+          appointmentConfirmationEmail({
+            name: appointment.customerNameSnapshot,
+            reference: appointment.confirmationNumber,
+            service: appointment.serviceNameSnapshot,
+            date: formattedDate,
+            manageUrl: `${env.NEXT_PUBLIC_APP_URL}/${appointment.locale}/appointments/manage/${management.token}`,
+          }),
+        )
+      : { delivered: false as const, error: "Customer has no email" };
+    if (!delivery.delivered && appointment.emailSnapshot) {
+      warnings.push(delivery.error);
+    }
+    if (appointment.staff?.email) {
+      const workerDelivery = await deliverWithoutFailingWebhook(
+        appointment.staff.email,
+        workerAppointmentEmail({
+          reference: appointment.confirmationNumber,
+          service: appointment.serviceNameSnapshot,
+          date: formattedDate,
+          customer: appointment.customerNameSnapshot,
+          adminUrl: `${env.NEXT_PUBLIC_APP_URL}/${appointment.locale}/admin/calendar?date=${formatInTimeZone(appointment.startAt, appointment.timezone, "yyyy-MM-dd")}`,
+          calendarUrl,
+        }),
+      );
+      if (!workerDelivery.delivered) warnings.push(workerDelivery.error);
+    }
+    if (warnings.length) {
       await database.appointment.update({
         where: { id: appointment.id },
         data: {
-          internalNotes: `Confirmation email pending: ${delivery.error}`,
+          internalNotes: `Confirmation notification pending: ${warnings.join("; ")}`,
         },
       });
     }
     return {
       handled: true,
       emailDelivered: delivery.delivered,
-      ...(delivery.delivered ? {} : { emailError: delivery.error }),
+      ...(warnings.length ? { emailError: warnings.join("; ") } : {}),
     };
   }
 
