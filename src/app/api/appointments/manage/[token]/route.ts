@@ -3,6 +3,8 @@ import {
   AppointmentTokenPurpose,
   PaymentProvider,
   Prisma,
+  UserRole,
+  UserStatus,
 } from "@prisma/client";
 import { differenceInHours } from "date-fns";
 import { requireDatabase } from "@/lib/db";
@@ -86,6 +88,22 @@ export async function DELETE(
     );
   }
   const database = requireDatabase();
+  const adminUsers = await database.user.findMany({
+    where: {
+      role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+      status: UserStatus.ACTIVE,
+      email: { not: null },
+    },
+    select: { email: true },
+  });
+  const recipients = [
+    ...new Set([
+      ...appointmentNotificationRecipients(),
+      ...adminUsers
+        .map((user) => user.email?.toLowerCase())
+        .filter((email): email is string => Boolean(email)),
+    ]),
+  ];
   await database.$transaction(
     async (tx) => {
       const sequence = await tx.appointmentStatusHistory.count({
@@ -134,7 +152,6 @@ export async function DELETE(
       });
     }
   }
-  const recipients = appointmentNotificationRecipients();
   let adminNotified = false;
   if (recipients.length) {
     try {

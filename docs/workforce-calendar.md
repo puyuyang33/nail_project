@@ -92,7 +92,8 @@ Set one or more comma-separated recipients:
 APPOINTMENT_NOTIFICATION_EMAILS=owner@gmail.com,frontdesk@example.com
 ```
 
-If this is empty, the app uses `AUTH_GOOGLE_ADMIN_EMAILS`. Resend delivers:
+The app combines this list with active administrator account emails and
+`AUTH_GOOGLE_ADMIN_EMAILS`. Resend delivers:
 
 - a new-request email to owners with a direct team-calendar link;
 - request-received and accept/decline emails to customers;

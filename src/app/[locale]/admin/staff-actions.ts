@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/authorization";
 import { requireDatabase } from "@/lib/db";
 import { availabilityBlockingStatuses } from "@/features/appointments/status";
+import { withTransactionRetry } from "@/lib/transactions";
 
 const optionalEmail = z.union([z.email(), z.literal("")]);
 const staffSchema = z.object({
@@ -74,70 +75,75 @@ export async function updateStaffMember(formData: FormData) {
         ? true
         : undefined;
 
-  await database.$transaction(async (tx) => {
-    if (parsed.data.intent === "save") {
-      await assertActiveServices(tx, serviceIds);
-    }
-    const current = await tx.staffMember.findUniqueOrThrow({
-      where: { id: parsed.data.id },
-    });
-    if (isActive === false) {
-      const futureAppointments = await tx.appointment.count({
-        where: {
-          staffId: current.id,
-          status: { in: availabilityBlockingStatuses },
-          startAt: { gt: new Date() },
-        },
-      });
-      if (futureAppointments) {
-        throw new Error(
-          "Reassign or cancel this worker's future appointments before retiring them.",
-        );
-      }
-    }
-    const worker = await tx.staffMember.update({
-      where: { id: current.id },
-      data: {
-        displayName: parsed.data.displayName,
-        email: parsed.data.email || null,
-        phone: parsed.data.phone || null,
-        bio: parsed.data.bio || null,
-        ...(isActive === undefined ? {} : { isActive }),
-      },
-    });
-    if (parsed.data.intent === "save") {
-      await tx.staffService.deleteMany({ where: { staffId: worker.id } });
-      if (serviceIds.length) {
-        await tx.staffService.createMany({
-          data: serviceIds.map((serviceId) => ({
-            staffId: worker.id,
-            serviceId,
-          })),
-          skipDuplicates: true,
+  await withTransactionRetry(() =>
+    database.$transaction(
+      async (tx) => {
+        if (parsed.data.intent === "save") {
+          await assertActiveServices(tx, serviceIds);
+        }
+        const current = await tx.staffMember.findUniqueOrThrow({
+          where: { id: parsed.data.id },
         });
-      }
-    }
-    await tx.auditLog.create({
-      data: {
-        actorId: actor.id,
-        action:
-          parsed.data.intent === "save"
-            ? "staff.update"
-            : `staff.${parsed.data.intent}`,
-        entityType: "StaffMember",
-        entityId: worker.id,
-        before: {
-          displayName: current.displayName,
-          isActive: current.isActive,
-        },
-        after: {
-          displayName: worker.displayName,
-          isActive: worker.isActive,
-          ...(parsed.data.intent === "save" ? { serviceIds } : {}),
-        },
+        if (isActive === false) {
+          const futureAppointments = await tx.appointment.count({
+            where: {
+              staffId: current.id,
+              status: { in: availabilityBlockingStatuses },
+              startAt: { gt: new Date() },
+            },
+          });
+          if (futureAppointments) {
+            throw new Error(
+              "Reassign or cancel this worker's future appointments before retiring them.",
+            );
+          }
+        }
+        const worker = await tx.staffMember.update({
+          where: { id: current.id },
+          data: {
+            displayName: parsed.data.displayName,
+            email: parsed.data.email || null,
+            phone: parsed.data.phone || null,
+            bio: parsed.data.bio || null,
+            ...(isActive === undefined ? {} : { isActive }),
+          },
+        });
+        if (parsed.data.intent === "save") {
+          await tx.staffService.deleteMany({ where: { staffId: worker.id } });
+          if (serviceIds.length) {
+            await tx.staffService.createMany({
+              data: serviceIds.map((serviceId) => ({
+                staffId: worker.id,
+                serviceId,
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
+        await tx.auditLog.create({
+          data: {
+            actorId: actor.id,
+            action:
+              parsed.data.intent === "save"
+                ? "staff.update"
+                : `staff.${parsed.data.intent}`,
+            entityType: "StaffMember",
+            entityId: worker.id,
+            before: {
+              displayName: current.displayName,
+              isActive: current.isActive,
+            },
+            after: {
+              displayName: worker.displayName,
+              isActive: worker.isActive,
+              ...(parsed.data.intent === "save" ? { serviceIds } : {}),
+            },
+          },
+        });
       },
-    });
-  });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
   revalidateStaff(parsed.data.locale);
 }
 

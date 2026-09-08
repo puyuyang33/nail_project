@@ -685,47 +685,52 @@ export async function createWorkerTimeOff(formData: FormData) {
     throw new Error("Time off must have valid start and end times.");
   }
   const database = requireDatabase();
-  await database.$transaction(async (tx) => {
-    const worker = await tx.staffMember.findUniqueOrThrow({
-      where: { id: parsed.data.staffId },
-    });
-    const conflictingAppointments = await tx.appointment.count({
-      where: {
-        staffId: worker.id,
-        status: { in: availabilityBlockingStatuses },
-        reservedStartAt: { lt: endsAt },
-        reservedEndAt: { gt: startsAt },
+  await withTransactionRetry(() =>
+    database.$transaction(
+      async (tx) => {
+        const worker = await tx.staffMember.findUniqueOrThrow({
+          where: { id: parsed.data.staffId },
+        });
+        const conflictingAppointments = await tx.appointment.count({
+          where: {
+            staffId: worker.id,
+            status: { in: availabilityBlockingStatuses },
+            reservedStartAt: { lt: endsAt },
+            reservedEndAt: { gt: startsAt },
+          },
+        });
+        if (conflictingAppointments) {
+          throw new Error(
+            "Reassign or cancel accepted appointments before marking this time off.",
+          );
+        }
+        const blocked = await tx.blockedTime.create({
+          data: {
+            staffId: worker.id,
+            type: BlockedTimeType.PERSONAL,
+            startsAt,
+            endsAt,
+            reason: parsed.data.reason,
+            createdById: actor.id,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId: actor.id,
+            action: "staff.time_off.create",
+            entityType: "BlockedTime",
+            entityId: blocked.id,
+            after: {
+              staffId: worker.id,
+              startsAt: startsAt.toISOString(),
+              endsAt: endsAt.toISOString(),
+            },
+          },
+        });
       },
-    });
-    if (conflictingAppointments) {
-      throw new Error(
-        "Reassign or cancel accepted appointments before marking this time off.",
-      );
-    }
-    const blocked = await tx.blockedTime.create({
-      data: {
-        staffId: worker.id,
-        type: BlockedTimeType.PERSONAL,
-        startsAt,
-        endsAt,
-        reason: parsed.data.reason,
-        createdById: actor.id,
-      },
-    });
-    await tx.auditLog.create({
-      data: {
-        actorId: actor.id,
-        action: "staff.time_off.create",
-        entityType: "BlockedTime",
-        entityId: blocked.id,
-        after: {
-          staffId: worker.id,
-          startsAt: startsAt.toISOString(),
-          endsAt: endsAt.toISOString(),
-        },
-      },
-    });
-  });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ),
+  );
   revalidateScheduling(parsed.data.locale);
 }
 

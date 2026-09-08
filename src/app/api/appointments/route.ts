@@ -4,6 +4,8 @@ import {
   ContactMethod,
   DayOfWeek,
   Prisma,
+  UserRole,
+  UserStatus,
 } from "@prisma/client";
 import { addDays, addMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
@@ -177,6 +179,22 @@ export async function POST(request: Request) {
       ? Number(service.depositAmount)
       : storeConfig.booking.depositAmount;
     const status = AppointmentStatus.PENDING;
+    const adminUsers = await database.user.findMany({
+      where: {
+        role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+        status: UserStatus.ACTIVE,
+        email: { not: null },
+      },
+      select: { email: true },
+    });
+    const recipients = [
+      ...new Set([
+        ...appointmentNotificationRecipients(),
+        ...adminUsers
+          .map((user) => user.email?.toLowerCase())
+          .filter((email): email is string => Boolean(email)),
+      ]),
+    ];
 
     const appointment = await withTransactionRetry(() =>
       database.$transaction(
@@ -293,7 +311,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const recipients = appointmentNotificationRecipients();
     if (recipients.length) {
       try {
         const delivery = await sendEmail({

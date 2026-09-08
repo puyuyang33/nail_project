@@ -58,6 +58,12 @@ test("shows guest booking fields and only selectable availability", async ({
   await expect(
     page.getByRole("button", { name: /Maya Chen 10:00 Open/i }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Maya Chen 11:30 Busy/i }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: /Elise Morgan 11:30 Open/i }),
+  ).toBeVisible();
   await expect(page.getByLabel("Your name")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Send appointment request" }),
