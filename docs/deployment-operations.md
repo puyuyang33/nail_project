@@ -18,6 +18,7 @@ supports it:
 7. **MongoDB Atlas (optional)** — document storage for editable nested content and
    TTL operational events. An M0 cluster can be used while the workload fits its
    free-tier limits.
+8. **Google Cloud OAuth** — web client for customer and administrator sign-in.
 
 Require MFA for provider dashboards and use least-privilege team roles. Never reuse
 production credentials in preview deployments.
@@ -34,6 +35,10 @@ are names or examples, not deployable credentials.
 | `DATABASE_URL`                 | PostgreSQL URL. The running app should use the provider's pooled URL when recommended for serverless; migration jobs need a DDL-capable connection. |
 | `NEXT_PUBLIC_APP_URL`          | Exact public origin without a trailing slash, such as `https://nails.example.com`. It is intentionally browser-visible.                             |
 | `AUTH_SECRET`                  | Random, unique, 32+ characters. Rotating it invalidates active JWT sessions.                                                                        |
+| `AUTH_GOOGLE_ID`               | Google OAuth web client ID.                                                                                                                         |
+| `AUTH_GOOGLE_SECRET`           | Google OAuth client secret; server-only.                                                                                                            |
+| `AUTH_GOOGLE_ADMIN_EMAILS`     | Comma-separated trusted administrator emails.                                                                                                       |
+| `AUTH_CREDENTIALS_ENABLED`     | Optional password fallback; defaults to `false`.                                                                                                    |
 | `BUSINESS_TIMEZONE`            | Valid IANA name, for example `America/Chicago`; never use an abbreviation such as `CST`.                                                            |
 | `STORE_CURRENCY`               | Validated three-letter ISO currency value. Runtime pricing currently reads `src/config/store.ts`; keep them aligned.                                |
 | `APPOINTMENT_DEPOSITS_ENABLED` | Enables Stripe-backed appointment deposits at runtime; defaults to `false`.                                                                         |

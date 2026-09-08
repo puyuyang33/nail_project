@@ -14,6 +14,12 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!env.AUTH_CREDENTIALS_ENABLED) {
+    return Response.json(
+      { error: "Password authentication is disabled. Use Google sign-in." },
+      { status: 404 },
+    );
+  }
   const originError = rejectUntrustedOrigin(request);
   if (originError) return originError;
   const limit = await enforceRateLimit("login", getClientIdentifier(request));

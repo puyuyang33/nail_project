@@ -13,6 +13,17 @@ const schema = z
     DATABASE_URL: optionalUrl,
     DIRECT_URL: optionalUrl,
     AUTH_SECRET: z.string().min(32).optional(),
+    AUTH_GOOGLE_ID: z.string().min(1).optional(),
+    AUTH_GOOGLE_SECRET: z.string().min(1).optional(),
+    AUTH_GOOGLE_ADMIN_EMAILS: z.string().default(""),
+    AUTH_CREDENTIALS_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    AUTH_PASSWORD_REGISTRATION_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
     STRIPE_SECRET_KEY: z.string().startsWith("sk_").optional(),
     STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
     CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
@@ -46,6 +57,24 @@ const schema = z
       .default(90),
   })
   .superRefine((value, context) => {
+    if (Boolean(value.AUTH_GOOGLE_ID) !== Boolean(value.AUTH_GOOGLE_SECRET)) {
+      context.addIssue({
+        code: "custom",
+        path: ["AUTH_GOOGLE_ID"],
+        message:
+          "AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET must be configured together",
+      });
+    }
+    if (
+      value.AUTH_PASSWORD_REGISTRATION_ENABLED &&
+      !value.AUTH_CREDENTIALS_ENABLED
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["AUTH_PASSWORD_REGISTRATION_ENABLED"],
+        message: "Password registration requires AUTH_CREDENTIALS_ENABLED=true",
+      });
+    }
     if (value.NOSQL_PROVIDER === "mongodb" && !value.MONGODB_URI) {
       context.addIssue({
         code: "custom",
@@ -69,7 +98,18 @@ export const env = parsed.data;
 
 export const serviceReadiness = {
   database: Boolean(env.DATABASE_URL),
-  auth: Boolean(env.AUTH_SECRET && env.DATABASE_URL),
+  auth: Boolean(
+    env.AUTH_SECRET &&
+    env.DATABASE_URL &&
+    ((env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) ||
+      env.AUTH_CREDENTIALS_ENABLED),
+  ),
+  googleAuth: Boolean(
+    env.AUTH_SECRET &&
+    env.DATABASE_URL &&
+    env.AUTH_GOOGLE_ID &&
+    env.AUTH_GOOGLE_SECRET,
+  ),
   stripe: Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET),
   cloudinary: Boolean(
     env.CLOUDINARY_CLOUD_NAME &&

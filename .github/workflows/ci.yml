@@ -42,6 +42,8 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lunaria_test?schema=public
       NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
       AUTH_SECRET: ci-only-auth-secret-not-valid-outside-github-actions
+      AUTH_GOOGLE_ID: ci-google-client-id
+      AUTH_GOOGLE_SECRET: ci-google-client-secret
       STRIPE_SECRET_KEY: sk_test_ci_placeholder
       STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
       CLOUDINARY_CLOUD_NAME: ci-placeholder

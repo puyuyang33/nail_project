@@ -4,6 +4,7 @@ import { requireDatabase } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
 import { enforceRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/request-security";
+import { env } from "@/lib/env";
 
 const schema = z.object({
   token: z.string().min(32).max(200),
@@ -17,6 +18,12 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!env.AUTH_CREDENTIALS_ENABLED) {
+    return Response.json(
+      { error: "Password authentication is disabled. Use Google sign-in." },
+      { status: 404 },
+    );
+  }
   const originError = rejectUntrustedOrigin(request);
   if (originError) return originError;
   const limit = await enforceRateLimit("login", getClientIdentifier(request));

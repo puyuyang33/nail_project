@@ -65,6 +65,11 @@ POSTGRES_PORT=5432
 DATABASE_URL=postgresql://lunaria:$databasePassword@localhost:5432/lunaria?schema=public
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 AUTH_SECRET=$authSecret
+# AUTH_GOOGLE_ID=replace-with-google-oauth-client-id
+# AUTH_GOOGLE_SECRET=replace-with-google-oauth-client-secret
+# AUTH_GOOGLE_ADMIN_EMAILS=owner@example.com
+AUTH_CREDENTIALS_ENABLED=false
+AUTH_PASSWORD_REGISTRATION_ENABLED=false
 CRON_SECRET=$cronSecret
 BUSINESS_TIMEZONE=America/Chicago
 STORE_CURRENCY=USD

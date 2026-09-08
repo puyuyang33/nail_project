@@ -125,6 +125,13 @@
     "priceNotice": "付款前，价格与库存将由服务器安全地重新验证。"
   },
   "Auth": {
+    "googleEyebrow": "Lunaria 账户",
+    "googleTitle": "使用 Google 登录，无需设置新密码。",
+    "continueGoogle": "使用 Google 继续",
+    "googlePrivacy": "Google 仅分享已验证的姓名、邮箱与头像；Lunaria 不会收到你的 Google 密码。",
+    "googleNotConfigured": "请先在服务器环境中配置 Google 客户端 ID 与密钥。",
+    "googleError": "Google 登录未能完成，请检查账户后重试。",
+    "passwordFallback": "密码备用登录",
     "welcome": "欢迎回来",
     "loginTitle": "进入你的工坊。",
     "login": "登录",

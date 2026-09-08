@@ -25,7 +25,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/book",
     "/orders/track",
     "/login",
-    "/register",
     ...Object.keys(contentPages).map((key) => `/${key}`),
   ];
   const dynamicRoutes = [

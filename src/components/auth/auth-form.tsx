@@ -12,10 +12,12 @@ export function AuthForm({
   mode,
   callbackUrl = "/account",
   resetToken,
+  allowRegistration = false,
 }: {
   mode: Mode;
   callbackUrl?: string;
   resetToken?: string;
+  allowRegistration?: boolean;
 }) {
   const locale = useLocale() as Locale;
   const t = useTranslations("Auth");
@@ -173,10 +175,16 @@ export function AuthForm({
         </p>
       </form>
       {mode === "login" && (
-        <div className="mt-6 flex justify-between text-xs">
-          <Link href="/register" className="underline underline-offset-4">
-            {t("createLink")}
-          </Link>
+        <div
+          className={`mt-6 flex text-xs ${
+            allowRegistration ? "justify-between" : "justify-end"
+          }`}
+        >
+          {allowRegistration && (
+            <Link href="/register" className="underline underline-offset-4">
+              {t("createLink")}
+            </Link>
+          )}
           <Link
             href="/forgot-password"
             className="underline underline-offset-4"

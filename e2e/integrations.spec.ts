@@ -26,7 +26,9 @@ test("administrator can sign in when seeded credentials are supplied", async ({
   page,
 }) => {
   test.skip(
-    !process.env.SEED_ADMIN_EMAIL || !process.env.SEED_ADMIN_PASSWORD,
+    !process.env.SEED_ADMIN_EMAIL ||
+      !process.env.SEED_ADMIN_PASSWORD ||
+      process.env.AUTH_CREDENTIALS_ENABLED !== "true",
     "Requires seeded administrator credentials",
   );
   await page.goto("/en/login");

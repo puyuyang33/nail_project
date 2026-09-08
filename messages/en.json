@@ -125,6 +125,13 @@
     "priceNotice": "Prices and availability are revalidated securely before payment."
   },
   "Auth": {
+    "googleEyebrow": "Lunaria account",
+    "googleTitle": "Sign in, no new password required.",
+    "continueGoogle": "Continue with Google",
+    "googlePrivacy": "Google shares your verified name, email, and profile image. Lunaria never receives your Google password.",
+    "googleNotConfigured": "Google sign-in needs its client ID and secret in the server environment.",
+    "googleError": "Google sign-in could not be completed. Check the account and try again.",
+    "passwordFallback": "Password fallback",
     "welcome": "Welcome back",
     "loginTitle": "Enter your atelier.",
     "login": "Sign in",

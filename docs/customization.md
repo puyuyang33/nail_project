@@ -159,6 +159,8 @@ timezone changes. Plan and communicate a real rescheduling migration.
       configure the four NoSQL variables, and run `npm run nosql:setup`.
 - [ ] Set distinct Preview and Production environment variables.
 - [ ] Generate new `AUTH_SECRET` and `CRON_SECRET`.
+- [ ] Create a Google OAuth web client, configure exact local/production callback
+      URLs, and set the administrator email allowlist.
 - [ ] Register the canonical Stripe webhook and only required events.
 - [ ] Verify the Resend sender domain and replace brand names in `src/lib/email.ts`.
 - [ ] Change the Upstash key prefix `lunaria:` in `src/lib/rate-limit.ts`.

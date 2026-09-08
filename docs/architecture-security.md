@@ -15,7 +15,7 @@ Public browser
   │
   ├── localized pages (next-intl)
   ├── public route handlers
-  └── Auth.js endpoints
+  └── Auth.js Google OAuth endpoints
          │
          ├── PostgreSQL through Prisma 7 / @prisma/adapter-pg
          ├── optional MongoDB document content and operational events
@@ -57,9 +57,10 @@ database URL.
 - `Address` belongs to a user. Orders copy address data into JSON snapshots instead
   of depending on a mutable saved address.
 
-Auth.js currently uses the credentials provider and JWT session strategy. The
-database session table remains available for adapter compatibility or a future
-session-strategy change.
+Auth.js uses Google OAuth and a JWT session strategy. Google must provide a verified
+email. Password credentials and public password registration are separate,
+disabled-by-default fallback flags. The database session table remains available for
+adapter compatibility or a future session-strategy change.
 
 ### Catalog and inventory
 
@@ -152,8 +153,10 @@ calculation, stock checks, or appointment checks into client components.
 
 ### Authentication and authorization
 
-- Credentials are compared with bcrypt hashes.
-- Public registration always assigns `CUSTOMER`; it cannot choose a role.
+- New verified Google accounts receive `CUSTOMER` unless their normalized email is in
+  the configured administrator allowlist.
+- Optional credential fallback compares bcrypt hashes; optional public password
+  registration always assigns `CUSTOMER`.
 - `requireUser` protects account pages.
 - `requireAdmin` permits only `ADMIN` and `SUPER_ADMIN` and protects admin
   layouts/actions. `STAFF` is reserved for future scoped permissions.

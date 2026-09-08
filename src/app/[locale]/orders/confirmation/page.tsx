@@ -28,8 +28,8 @@ export default async function OrderConfirmationPage({
           <Link href="/shop" className="button-primary">
             Continue exploring
           </Link>
-          <Link href="/register" className="button-secondary">
-            Create an optional account
+          <Link href="/login" className="button-secondary">
+            Continue with Google
           </Link>
         </div>
       </div>

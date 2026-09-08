@@ -73,6 +73,21 @@ test("serves version-controlled content while MongoDB is disabled", async ({
   ).toBeVisible();
 });
 
+test("uses Google as the default account sign-in", async ({ page }) => {
+  await page.goto("/en/login");
+  await expect(
+    page.getByRole("heading", {
+      name: "Sign in, no new password required.",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Continue with Google" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Password")).toHaveCount(0);
+  await page.goto("/en/register");
+  await expect(page).toHaveURL(/\/en\/login$/);
+});
+
 test("search and product details remain keyboard reachable", async ({
   page,
 }) => {

@@ -16,7 +16,7 @@ order tracking, and appointment booking support guests; accounts are optional.
 - Timezone-aware scheduling, staff availability, blocked time, service buffers, and
   a PostgreSQL exclusion constraint preventing overlapping active appointments
 - Secure guest appointment-management links and reminder infrastructure
-- Credentials-based Auth.js accounts, role-gated administration, and audit records
+- Google-based Auth.js accounts, role-gated administration, and audit records
 - Signed Cloudinary uploads with localized alternative text
 - Resend transactional email and Upstash-backed rate limiting
 - Responsive, accessible storefront with database-free demo catalog fallbacks
@@ -29,7 +29,7 @@ Browser
   └─ route handlers / server actions (Zod validation + authorization)
        ├─ Prisma 7 + @prisma/adapter-pg ── PostgreSQL
        ├─ MongoDB Atlas (optional) ── flexible content documents
-       ├─ Auth.js ── credentials/JWT sessions
+       ├─ Auth.js + Google OAuth ── verified accounts/JWT sessions
        ├─ Stripe ── hosted checkout + signed webhooks
        ├─ Cloudinary ── signed direct image uploads
        ├─ Resend ── transactional email
@@ -54,6 +54,7 @@ data flows, and database details.
 - Node.js 22.12+ LTS and npm (Prisma also supports Node.js 20.19+ or 24+)
 - Docker Desktop with Compose, or PostgreSQL 17+
 - Accounts for Stripe, Cloudinary, Resend, Upstash, and Vercel before production
+- A Google Cloud OAuth client for account and administrator sign-in
 
 ## Local setup
 
@@ -135,6 +136,11 @@ preview, and production environments.
 | `DIRECT_URL`                                                         | No                               | Reserved for a future pooled/direct split; current Prisma config reads `DATABASE_URL` |
 | `NEXT_PUBLIC_APP_URL`                                                | Production                       | Canonical origin used in metadata, redirects, and email links                         |
 | `AUTH_SECRET`                                                        | Auth/production                  | At least 32 random characters for Auth.js token signing                               |
+| `AUTH_GOOGLE_ID`                                                     | Google sign-in                   | Google OAuth web client ID                                                            |
+| `AUTH_GOOGLE_SECRET`                                                 | Google sign-in                   | Google OAuth client secret; server-only                                               |
+| `AUTH_GOOGLE_ADMIN_EMAILS`                                           | No                               | Comma-separated verified Google emails promoted to administrator                      |
+| `AUTH_CREDENTIALS_ENABLED`                                           | No                               | Enables the optional password fallback; defaults to `false`                           |
+| `AUTH_PASSWORD_REGISTRATION_ENABLED`                                 | No                               | Enables public password registration only when credentials are enabled                |
 | `STRIPE_SECRET_KEY`                                                  | Checkout                         | Stripe secret key (`sk_test_...` locally)                                             |
 | `STRIPE_WEBHOOK_SECRET`                                              | Checkout                         | Signing secret for `/api/stripe/webhook`                                              |
 | `CLOUDINARY_CLOUD_NAME`                                              | Image uploads                    | Cloudinary account cloud name                                                         |
@@ -166,10 +172,15 @@ in [Deployment and operations](docs/deployment-operations.md).
 
 ## Authentication and initial administrator
 
-Auth.js uses the Prisma adapter and credentials provider. Passwords are hashed with
-bcrypt (cost 12); sessions use signed JWTs. Public registration can create only
-`CUSTOMER` users. Only `ADMIN` and `SUPER_ADMIN` roles can enter the protected
-admin console; `STAFF` remains available for future scoped permissions.
+Auth.js uses Google OAuth, the Prisma adapter, and signed JWT sessions. A verified
+Google account creates its customer record automatically, so customers do not manage
+another password. Only `ADMIN` and `SUPER_ADMIN` roles can enter the protected admin
+console; trusted addresses in `AUTH_GOOGLE_ADMIN_EMAILS` are promoted to `ADMIN`.
+
+Password authentication is disabled by default and remains available only behind
+explicit fallback flags. See
+[Google authentication](docs/google-authentication.md) for Cloud Console origins,
+callback URLs, consent-screen setup, and administrator access.
 
 The seed requires administrator credentials from the environment. On repeat runs it
 does not change an existing password unless `SEED_ADMIN_ROTATE_PASSWORD=true`.
@@ -227,8 +238,9 @@ Every page below is prefixed with `/{locale}`, where `locale` is `en` or `zh`.
 
 | Route                                 | Purpose                                                                                                                                                                                                                |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/login`, `/register`                 | Credentials login and optional customer registration                                                                                                                                                                   |
-| `/forgot-password`, `/reset-password` | One-hour, single-use password recovery                                                                                                                                                                                 |
+| `/login`                              | Google OAuth login with optional administrator password fallback                                                                                                                                                       |
+| `/register`                           | Redirects to Google login unless password registration is explicitly enabled                                                                                                                                           |
+| `/forgot-password`, `/reset-password` | Available only when password authentication is explicitly enabled                                                                                                                                                      |
 | `/account`                            | Authenticated account overview                                                                                                                                                                                         |
 | `/account/profile`                    | Contact profile                                                                                                                                                                                                        |
 | `/account/orders`                     | Linked order history                                                                                                                                                                                                   |

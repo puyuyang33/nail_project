@@ -5,6 +5,7 @@ import { requireDatabase } from "@/lib/db";
 import { enforceRateLimit, getClientIdentifier } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/normalize";
 import { rejectUntrustedOrigin } from "@/lib/request-security";
+import { env } from "@/lib/env";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -20,6 +21,12 @@ const registerSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!env.AUTH_PASSWORD_REGISTRATION_ENABLED) {
+    return Response.json(
+      { error: "Password registration is disabled. Use Google sign-in." },
+      { status: 404 },
+    );
+  }
   const originError = rejectUntrustedOrigin(request);
   if (originError) return originError;
   const limit = await enforceRateLimit("login", getClientIdentifier(request));
