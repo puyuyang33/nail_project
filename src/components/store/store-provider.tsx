@@ -79,14 +79,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         };
         const enabled = response.ok && remote.mode === "database";
         setRemoteEnabled(enabled);
-        setCart(localCart.length ? localCart : (remote.cart ?? []));
-        setWishlist(
-          localWishlist.length ? localWishlist : (remote.wishlist ?? []),
+        setCart((current) =>
+          current.length
+            ? current
+            : localCart.length
+              ? localCart
+              : (remote.cart ?? []),
+        );
+        setWishlist((current) =>
+          current.length
+            ? current
+            : localWishlist.length
+              ? localWishlist
+              : (remote.wishlist ?? []),
         );
         setSyncStatus(enabled ? "synced" : "local");
       } catch {
-        setCart(localCart);
-        setWishlist(localWishlist);
+        setCart((current) => (current.length ? current : localCart));
+        setWishlist((current) => (current.length ? current : localWishlist));
         setSyncStatus("error");
       } finally {
         setHydrated(true);
