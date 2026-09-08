@@ -459,7 +459,8 @@ already understood and reconciled; it does not execute or undo SQL.
 
 | Symptom                                             | Checks                                                                                                                                                            |
 | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Prisma config cannot load                           | Set `DATABASE_URL`; `prisma.config.ts` intentionally requires it                                                                                                  |
+| Prisma command targets the local fallback database  | Set `DATABASE_URL` explicitly before migrations, seeding, or Studio; generation alone needs no live database                                                      |
+| `Cannot find module '.prisma/client/default'`       | Run `npm run db:generate`; current installs also run this automatically through `postinstall`                                                                     |
 | Local PostgreSQL rejects a newly generated password | An existing named volume keeps its original credentials; restore the old `.env` or, for disposable data only, run `docker compose down --volumes` and rerun setup |
 | App shows demo catalog                              | Confirm `DATABASE_URL` is set in the running environment and redeploy                                                                                             |
 | Database connection exhaustion                      | Use the provider's serverless pooler and inspect adapter/pool limits                                                                                              |

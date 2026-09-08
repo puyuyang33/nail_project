@@ -91,6 +91,10 @@ npm run db:generate
 npm run db:migrate:deploy
 ```
 
+`npm ci` runs the `postinstall` hook and generates Prisma Client automatically.
+Generation uses a local-only fallback URL and does not require PostgreSQL to be
+running; database commands still use `DATABASE_URL` when provided.
+
 Create a gitignored `.env`:
 
 ```dotenv

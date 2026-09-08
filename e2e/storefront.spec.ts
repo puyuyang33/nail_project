@@ -68,7 +68,9 @@ test("serves version-controlled content while MongoDB is disabled", async ({
   await expect(
     page.getByRole("heading", { name: "Hands tell stories." }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "The atelier" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "The atelier" }),
+  ).toBeVisible();
 });
 
 test("search and product details remain keyboard reachable", async ({
