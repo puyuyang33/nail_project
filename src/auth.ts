@@ -45,46 +45,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }),
         ]
       : []),
-    ...(env.AUTH_CREDENTIALS_ENABLED
-      ? [
-          Credentials({
-            credentials: {
-              email: { label: "Email", type: "email" },
-              password: { label: "Password", type: "password" },
-            },
-            async authorize(credentials, request) {
-              const limit = await enforceRateLimit(
-                "login",
-                getClientIdentifier(request),
-              );
-              if (!limit.success) return null;
-              const parsed = credentialsSchema.safeParse(credentials);
-              if (!parsed.success) return null;
-              const user = await db.user.findUnique({
-                where: { email: parsed.data.email },
-              });
-              const passwordMatches = await compare(
-                parsed.data.password,
-                user?.passwordHash ?? dummyPasswordHash,
-              );
-              if (
-                !user?.passwordHash ||
-                user.status !== UserStatus.ACTIVE ||
-                !passwordMatches
-              ) {
-                return null;
-              }
-              return {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                image: user.image,
-                role: user.role,
-              };
-            },
-          }),
-        ]
-      : []),
+    Credentials({
+      name: "Password fallback",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials, request) {
+        if (!env.AUTH_CREDENTIALS_ENABLED) return null;
+        const limit = await enforceRateLimit(
+          "login",
+          getClientIdentifier(request),
+        );
+        if (!limit.success) return null;
+        const parsed = credentialsSchema.safeParse(credentials);
+        if (!parsed.success) return null;
+        const user = await db.user.findUnique({
+          where: { email: parsed.data.email },
+        });
+        const passwordMatches = await compare(
+          parsed.data.password,
+          user?.passwordHash ?? dummyPasswordHash,
+        );
+        if (
+          !user?.passwordHash ||
+          user.status !== UserStatus.ACTIVE ||
+          !passwordMatches
+        ) {
+          return null;
+        }
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image,
+          role: user.role,
+        };
+      },
+    }),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
