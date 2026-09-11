@@ -33,6 +33,8 @@ are names or examples, not deployable credentials.
 | Variable                          | Notes                                                                                                                                               |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`                    | PostgreSQL URL. The running app should use the provider's pooled URL when recommended for serverless; migration jobs need a DDL-capable connection. |
+| `DIRECT_URL`                      | Preferred direct/unpooled URL for migrations and seed commands.                                                                                     |
+| `DATABASE_URL_UNPOOLED`           | Neon Marketplace's direct URL name; Prisma uses it when `DIRECT_URL` is absent.                                                                     |
 | `NEXT_PUBLIC_APP_URL`             | Exact public origin without a trailing slash, such as `https://nails.example.com`. It is intentionally browser-visible.                             |
 | `AUTH_SECRET`                     | Random, unique, 32+ characters. Rotating it invalidates active JWT sessions.                                                                        |
 | `AUTH_GOOGLE_ID`                  | Google OAuth web client ID.                                                                                                                         |
@@ -48,10 +50,8 @@ are names or examples, not deployable credentials.
 | `MONGODB_DATABASE`                | Document database name; defaults to `lunaria`.                                                                                                      |
 | `NOSQL_EVENT_RETENTION_DAYS`      | TTL for operational documents; defaults to 90 days.                                                                                                 |
 
-`DIRECT_URL` is accepted by environment validation but is not consumed by the current
-`prisma.config.ts`. For a provider that supplies pooled and direct URLs, inject the
-direct URL as `DATABASE_URL` only in the controlled migration job and retain the
-pooled URL in the Vercel runtime.
+At runtime the application uses pooled `DATABASE_URL`. Prisma commands prefer
+`DIRECT_URL`, then Neon's `DATABASE_URL_UNPOOLED`, then `DATABASE_URL`.
 
 ### Integrations
 
@@ -68,9 +68,8 @@ pooled URL in the Vercel runtime.
 | `UPSTASH_REDIS_REST_TOKEN` | Server only                                                       |
 | `CRON_SECRET`              | Random, unique, 32+ characters; server only                       |
 
-Vercel production builds fail early when core provider variables are missing.
-`NEXT_PUBLIC_APP_URL` and `EMAIL_FROM` are also operationally required even though
-the build guard does not currently enforce them.
+Vercel production builds fail early when required database, origin, authentication,
+payment, image, email, rate-limit, and cron variables are missing.
 
 ### Seed only
 
@@ -349,15 +348,14 @@ The reminder handler accepts authenticated `GET` requests and processes 50 confi
 appointments per invocation. Failed sends are delayed 30 minutes and retried up to
 three times.
 
-Add this configuration to a root `vercel.json` if the project does not already
-manage cron schedules elsewhere:
+The checked-in `vercel.json` runs a daily fallback compatible with Vercel Hobby:
 
 ```json
 {
   "crons": [
     {
       "path": "/api/cron/appointment-reminders",
-      "schedule": "0 * * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }
@@ -366,6 +364,16 @@ manage cron schedules elsewhere:
 Vercel sends `Authorization: Bearer <CRON_SECRET>` for configured cron requests.
 For a manual check, supply that header from a secure shell without recording the
 secret in history. Never place the secret in the URL.
+
+Vercel Hobby does not support hourly cron schedules. For timely reminders on the
+free plan, `.github/workflows/appointment-reminders.yml` calls the same endpoint
+hourly. Add GitHub repository secrets:
+
+- `APP_URL`: the canonical production origin, for example `https://nails.example.com`
+- `CRON_SECRET`: exactly the same value configured in Vercel
+
+The endpoint is idempotent for already-sent reminders, so the daily Vercel fallback
+and hourly GitHub workflow may coexist.
 
 ## Vercel deployment
 

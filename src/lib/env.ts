@@ -12,6 +12,7 @@ const schema = z
     NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
     DATABASE_URL: optionalUrl,
     DIRECT_URL: optionalUrl,
+    DATABASE_URL_UNPOOLED: optionalUrl,
     AUTH_SECRET: z.string().min(32).optional(),
     AUTH_GOOGLE_ID: z.string().min(1).optional(),
     AUTH_GOOGLE_SECRET: z.string().min(1).optional(),

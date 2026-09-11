@@ -132,42 +132,43 @@ Then run `npm run dev` and open <http://localhost:3000/en>.
 Never commit `.env` files. Use separate credentials and databases for local,
 preview, and production environments.
 
-| Variable                                                             | Required                         | Purpose                                                                               |
-| -------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                                                       | Database features and production | PostgreSQL connection used by Prisma runtime and migrations                           |
-| `DIRECT_URL`                                                         | No                               | Reserved for a future pooled/direct split; current Prisma config reads `DATABASE_URL` |
-| `NEXT_PUBLIC_APP_URL`                                                | Production                       | Canonical origin used in metadata, redirects, and email links                         |
-| `AUTH_SECRET`                                                        | Auth/production                  | At least 32 random characters for Auth.js token signing                               |
-| `AUTH_GOOGLE_ID`                                                     | Google sign-in                   | Google OAuth web client ID                                                            |
-| `AUTH_GOOGLE_SECRET`                                                 | Google sign-in                   | Google OAuth client secret; server-only                                               |
-| `AUTH_GOOGLE_ADMIN_EMAILS`                                           | No                               | Comma-separated verified Google emails promoted to administrator                      |
-| `AUTH_CREDENTIALS_ENABLED`                                           | No                               | Enables the optional password fallback; defaults to `false`                           |
-| `AUTH_PASSWORD_REGISTRATION_ENABLED`                                 | No                               | Enables public password registration only when credentials are enabled                |
-| `STRIPE_SECRET_KEY`                                                  | Checkout                         | Stripe secret key (`sk_test_...` locally)                                             |
-| `STRIPE_WEBHOOK_SECRET`                                              | Checkout                         | Signing secret for `/api/stripe/webhook`                                              |
-| `CLOUDINARY_CLOUD_NAME`                                              | Image uploads                    | Cloudinary account cloud name                                                         |
-| `CLOUDINARY_API_KEY`                                                 | Image uploads                    | Cloudinary API key                                                                    |
-| `CLOUDINARY_API_SECRET`                                              | Image uploads                    | Cloudinary API secret; server-only                                                    |
-| `RESEND_API_KEY`                                                     | Email                            | Resend key (`re_...`)                                                                 |
-| `EMAIL_FROM`                                                         | Email                            | Verified sender, for example `Lunaria <orders@example.com>`                           |
-| `UPSTASH_REDIS_REST_URL`                                             | Production rate limits           | Upstash Redis REST URL                                                                |
-| `UPSTASH_REDIS_REST_TOKEN`                                           | Production rate limits           | Upstash Redis REST token                                                              |
-| `CRON_SECRET`                                                        | Reminders/production             | At least 32 random characters; authenticates the cron route                           |
-| `BUSINESS_TIMEZONE`                                                  | No                               | IANA timezone; defaults to `America/Chicago`                                          |
-| `STORE_CURRENCY`                                                     | No                               | Validated currency value; keep aligned with `storeConfig.currency`                    |
-| `APPOINTMENT_DEPOSITS_ENABLED`                                       | No                               | Enables Stripe-backed appointment deposits; defaults to `false`                       |
-| `APPOINTMENT_NOTIFICATION_EMAILS`                                    | No                               | Comma-separated owner/front-desk notification recipients                              |
-| `NOSQL_PROVIDER`                                                     | No                               | `disabled` (default) or `mongodb`                                                     |
-| `MONGODB_URI`                                                        | MongoDB mode                     | Server-only Atlas/compatible driver URI                                               |
-| `MONGODB_DATABASE`                                                   | No                               | Document database name; defaults to `lunaria`                                         |
-| `NOSQL_EVENT_RETENTION_DAYS`                                         | No                               | TTL for operational documents; defaults to 90 days                                    |
-| `SEED_ADMIN_EMAIL` / `ADMIN_EMAIL`                                   | Seed                             | Initial administrator email                                                           |
-| `SEED_ADMIN_PASSWORD` / `ADMIN_PASSWORD`                             | Seed                             | Initial administrator password; never logged or committed                             |
-| `SEED_ADMIN_NAME` / `ADMIN_NAME`                                     | No                               | Initial administrator display name                                                    |
-| `SEED_ADMIN_ROTATE_PASSWORD`                                         | No                               | Set to `true` only for an intentional seeded-admin password rotation                  |
-| `SEED_DEMO_DATA`                                                     | No                               | Set to `true` to add `.test` customer/order/appointment samples                       |
-| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Docker only                      | Override local Compose defaults                                                       |
-| `SKIP_ENV_VALIDATION`                                                | Emergency only                   | Bypasses Vercel production checks; do not set in production                           |
+| Variable                                                             | Required                         | Purpose                                                                |
+| -------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------- |
+| `DATABASE_URL`                                                       | Database features and production | PostgreSQL connection used by Prisma runtime and migrations            |
+| `DIRECT_URL`                                                         | Recommended for migrations       | Direct PostgreSQL URL; preferred by Prisma migration and seed commands |
+| `DATABASE_URL_UNPOOLED`                                              | Neon integration                 | Neon Marketplace direct URL; used when `DIRECT_URL` is absent          |
+| `NEXT_PUBLIC_APP_URL`                                                | Production                       | Canonical origin used in metadata, redirects, and email links          |
+| `AUTH_SECRET`                                                        | Auth/production                  | At least 32 random characters for Auth.js token signing                |
+| `AUTH_GOOGLE_ID`                                                     | Google sign-in                   | Google OAuth web client ID                                             |
+| `AUTH_GOOGLE_SECRET`                                                 | Google sign-in                   | Google OAuth client secret; server-only                                |
+| `AUTH_GOOGLE_ADMIN_EMAILS`                                           | No                               | Comma-separated verified Google emails promoted to administrator       |
+| `AUTH_CREDENTIALS_ENABLED`                                           | No                               | Enables the optional password fallback; defaults to `false`            |
+| `AUTH_PASSWORD_REGISTRATION_ENABLED`                                 | No                               | Enables public password registration only when credentials are enabled |
+| `STRIPE_SECRET_KEY`                                                  | Checkout                         | Stripe secret key (`sk_test_...` locally)                              |
+| `STRIPE_WEBHOOK_SECRET`                                              | Checkout                         | Signing secret for `/api/stripe/webhook`                               |
+| `CLOUDINARY_CLOUD_NAME`                                              | Image uploads                    | Cloudinary account cloud name                                          |
+| `CLOUDINARY_API_KEY`                                                 | Image uploads                    | Cloudinary API key                                                     |
+| `CLOUDINARY_API_SECRET`                                              | Image uploads                    | Cloudinary API secret; server-only                                     |
+| `RESEND_API_KEY`                                                     | Email                            | Resend key (`re_...`)                                                  |
+| `EMAIL_FROM`                                                         | Email                            | Verified sender, for example `Lunaria <orders@example.com>`            |
+| `UPSTASH_REDIS_REST_URL`                                             | Production rate limits           | Upstash Redis REST URL                                                 |
+| `UPSTASH_REDIS_REST_TOKEN`                                           | Production rate limits           | Upstash Redis REST token                                               |
+| `CRON_SECRET`                                                        | Reminders/production             | At least 32 random characters; authenticates the cron route            |
+| `BUSINESS_TIMEZONE`                                                  | No                               | IANA timezone; defaults to `America/Chicago`                           |
+| `STORE_CURRENCY`                                                     | No                               | Validated currency value; keep aligned with `storeConfig.currency`     |
+| `APPOINTMENT_DEPOSITS_ENABLED`                                       | No                               | Enables Stripe-backed appointment deposits; defaults to `false`        |
+| `APPOINTMENT_NOTIFICATION_EMAILS`                                    | No                               | Comma-separated owner/front-desk notification recipients               |
+| `NOSQL_PROVIDER`                                                     | No                               | `disabled` (default) or `mongodb`                                      |
+| `MONGODB_URI`                                                        | MongoDB mode                     | Server-only Atlas/compatible driver URI                                |
+| `MONGODB_DATABASE`                                                   | No                               | Document database name; defaults to `lunaria`                          |
+| `NOSQL_EVENT_RETENTION_DAYS`                                         | No                               | TTL for operational documents; defaults to 90 days                     |
+| `SEED_ADMIN_EMAIL` / `ADMIN_EMAIL`                                   | Seed                             | Initial administrator email                                            |
+| `SEED_ADMIN_PASSWORD` / `ADMIN_PASSWORD`                             | Seed                             | Initial administrator password; never logged or committed              |
+| `SEED_ADMIN_NAME` / `ADMIN_NAME`                                     | No                               | Initial administrator display name                                     |
+| `SEED_ADMIN_ROTATE_PASSWORD`                                         | No                               | Set to `true` only for an intentional seeded-admin password rotation   |
+| `SEED_DEMO_DATA`                                                     | No                               | Set to `true` to add `.test` customer/order/appointment samples        |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Docker only                      | Override local Compose defaults                                        |
+| `SKIP_ENV_VALIDATION`                                                | Emergency only                   | Bypasses Vercel production checks; do not set in production            |
 
 The production build rejects missing database, auth, Stripe, Cloudinary, Resend,
 Upstash, and cron credentials when `VERCEL_ENV=production`. Operational details are
@@ -399,6 +400,9 @@ lint, unit tests, and the production build.
 
 See [Deployment and operations](docs/deployment-operations.md) for complete setup,
 launch, monitoring, backup, and rollback procedures.
+
+中文完整上线步骤见
+[Vercel 完整部署指南](docs/vercel-launch.zh-CN.md)。
 
 ## Production launch checklist
 

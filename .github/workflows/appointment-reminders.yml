@@ -1,0 +1,39 @@
+name: Appointment reminders
+
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appointment-reminders
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    name: Invoke reminder endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate configuration
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          test -n "$APP_URL" || { echo "::error::Missing APP_URL repository secret"; exit 1; }
+          test -n "$CRON_SECRET" || { echo "::error::Missing CRON_SECRET repository secret"; exit 1; }
+
+      - name: Send due appointment reminders
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 15 \
+            --max-time 120 \
+            --retry 2 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "${APP_URL%/}/api/cron/appointment-reminders"
