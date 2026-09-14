@@ -27,7 +27,7 @@ Stripe 支付、多人预约审批、图片上传、邮件通知、限流以及�
 目录运行：
 
 ```powershell
-Set-Location "C:\Users\YDDS768\.copilot\repos\copilot-worktrees\nail-template\ydds768-deere-psychic-fortnight"
+Set-Location "C:\path\to\your\cloned\nail-template"
 git status
 git remote add origin https://github.com/YOUR_ACCOUNT/YOUR_REPOSITORY.git
 git push -u origin HEAD:main

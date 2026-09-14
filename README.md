@@ -372,6 +372,7 @@ appointments and retries failures up to three times.
 ```bash
 npm run typecheck
 npm run lint
+npm run check:public-deps
 npm test
 npx playwright install chromium
 npm run test:e2e
